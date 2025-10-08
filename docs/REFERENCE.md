@@ -2,7 +2,7 @@
 
 Quick reference for architecture, tech stack, database schema, and key decisions.
 
-**Last Updated**: 2025-01-08
+**Last Updated**: 2025-10-08
 
 ---
 
@@ -19,7 +19,7 @@ Quick reference for architecture, tech stack, database schema, and key decisions
   },
   "frontend": {
     "routing": "Next.js App Router (file-based)",
-    "state_management": "Jotai 2.10+",
+    "state_management": "React Server Components (no library)",
     "ui_library": "Tailwind CSS 3.4+ + Radix UI",
     "code_editor": "Monaco Editor 0.52+",
     "forms": "React Hook Form 7.53+ + Zod 3.23+"
@@ -67,7 +67,7 @@ Quick reference for architecture, tech stack, database schema, and key decisions
 | Technology | Alternative Considered | Why Chosen |
 |------------|------------------------|------------|
 | **Next.js in Electron** | Plain React | Better DX, built-in routing, SSG for performance |
-| **Jotai** | Zustand, Redux | Atomic state perfect for wizard flows, simpler API |
+| **React Server Components** | Jotai, Zustand | No global state library needed, data fetched on server |
 | **SQLite** | PostgreSQL, MySQL | Local-first, single file, portable, perfect for desktop |
 | **Prisma** | TypeORM, Sequelize | Best TypeScript support, excellent DX, migrations |
 | **Radix UI** | Material UI, Ant Design | Headless, accessible, no vendor lock-in, composable |
@@ -300,7 +300,7 @@ Connection ──╳ Tools (referenced by name in Tool.config, no FK)
 ```
 User Action (Save Tool)
     ↓
-IPC Handler
+Server Action (updateTool)
     ├─→ Write to SQLite (Prisma)
     └─→ Create Version Snapshot
          ↓
@@ -319,7 +319,7 @@ Zero Downtime Reload Complete ✓
 ```
 
 **Files Involved:**
-- `electron/ipc/tool-handlers.ts` - IPC handlers that write to DB
+- `src/app/servers/[id]/tools/actions.ts` - Server Actions that write to DB
 - `mcp-runtime/src/hot-reload.ts` - File watcher and reload orchestrator
 - `mcp-runtime/src/server.ts` - Pause/resume mechanism
 
@@ -327,6 +327,8 @@ Zero Downtime Reload Complete ✓
 
 ```
 Any Config Change (Tool, Connection, Settings)
+    ↓
+Server Action
     ↓
 Prisma Transaction
     ├─→ Update/Create/Delete entity
@@ -343,20 +345,23 @@ Rollback Available ✓
 
 **Rollback Process:**
 1. User selects version from history
-2. Create "before rollback" snapshot
-3. Delete current tools/connections
-4. Recreate from snapshot (preserve IDs)
-5. Update server settings
-6. Trigger hot-reload
+2. Server Action: rollbackToVersion()
+3. Create "before rollback" snapshot
+4. Delete current tools/connections
+5. Recreate from snapshot (preserve IDs)
+6. Update server settings
+7. Trigger hot-reload
 
 **Files Involved:**
-- `electron/ipc/version-handlers.ts` - Snapshot creation and rollback logic
+- `src/app/servers/[id]/versions/actions.ts` - Snapshot creation and rollback logic
 - `prisma/schema.prisma` - Version model
 
 ### **3. Encryption Pattern**
 
 ```
 Credential Input (Password, API Key)
+    ↓
+Server Action receives data
     ↓
 Encrypt (AES-256-GCM)
     ├─→ Key: Machine-specific (derived from machine ID)
@@ -366,7 +371,7 @@ Encrypt (AES-256-GCM)
 Store Encrypted String in DB
     ↓
 On Use:
-    ├─→ Read encrypted string
+    ├─→ Server Action reads encrypted string
     ├─→ Decrypt with machine key
     └─→ Use in-memory only (never log)
          ↓
@@ -374,11 +379,28 @@ Secure Credential Management ✓
 ```
 
 **Files Involved:**
-- `electron/crypto/encryption.ts` - Encryption utilities
-- `electron/ipc/connection-handlers.ts` - Encrypt before save, decrypt on load
+- `src/lib/encryption.ts` - Encryption utilities
+- `src/app/servers/[id]/connections/actions.ts` - Encrypt before save, decrypt on load
 
 ### **4. Tool Execution Pattern**
 
+**A. Testing Tools (from UI)**
+```
+User clicks "Test Tool"
+    ↓
+Server Action: testTool(toolId, parameters)
+    ↓
+Load tool config from DB
+    ↓
+Execute via tool-tester.ts
+    ├─→ SQL: Query DB with parameterized query
+    ├─→ REST: HTTP request with auth
+    └─→ Webhook: Mock test
+         ↓
+Return Result to UI ✓
+```
+
+**B. Production Execution (from Claude)**
 ```
 MCP Request (from Claude)
     ↓
@@ -399,6 +421,7 @@ Return Result to Claude ✓
 ```
 
 **Files Involved:**
+- `src/lib/tool-tester.ts` - Tool testing for UI
 - `mcp-runtime/src/tools/sql-executor.ts` - SQL execution
 - `mcp-runtime/src/tools/rest-executor.ts` - REST API calls
 - `mcp-runtime/src/tools/webhook-executor.ts` - Webhook handling
@@ -745,4 +768,4 @@ publish:
 
 **Maintained By**: Yasban Core Team
 **License**: MIT
-**Last Updated**: 2025-01-08
+**Last Updated**: 2025-10-08

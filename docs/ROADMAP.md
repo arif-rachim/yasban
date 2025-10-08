@@ -28,14 +28,14 @@ Complete timeline and feature roadmap for Yasban development.
 - [ ] Initialize Nextron project: `npx create-nextron-app yasban --example with-typescript`
 - [ ] Install dependencies:
   ```bash
-  npm install jotai prisma @prisma/client zod
+  npm install prisma @prisma/client zod
   npm install @modelcontextprotocol/sdk
   npm install @monaco-editor/react monaco-editor
   npm install pg mysql2 tedious better-sqlite3
   npm install node-windows node-linux
   npm install @radix-ui/react-dialog @radix-ui/react-select @radix-ui/react-tabs
   npm install tailwindcss autoprefixer postcss
-  npm install axios express
+  npm install axios express winston
   npm install -D vitest @playwright/test concurrently cross-env
   ```
 - [ ] Configure Next.js for static export (`next.config.js`)
@@ -44,8 +44,7 @@ Complete timeline and feature roadmap for Yasban development.
 - [ ] Create complete Prisma schema (8 models)
 - [ ] Run first migration: `npm run db:migrate`
 - [ ] Create encryption utilities (`electron/crypto/encryption.ts`)
-- [ ] Setup basic IPC handler (`electron/ipc/server-handlers.ts`)
-- [ ] Create Jotai store structure (`src/store/servers.ts`, etc.)
+- [ ] Setup basic Server Action (`src/app/servers/actions.ts`)
 - [ ] Build basic layout component (sidebar + main panel)
 - [ ] Update README with setup instructions
 - [ ] Test: `npm run dev` works
@@ -55,7 +54,7 @@ Complete timeline and feature roadmap for Yasban development.
 - ✅ Prisma schema complete with all models
 - ✅ Basic UI shows empty dashboard
 - ✅ Encryption utilities tested
-- ✅ IPC communication working (e.g., `server:list` returns [])
+- ✅ Server Actions working (e.g., can create/read servers)
 
 **Success Criteria:**
 - App starts in <5 seconds
@@ -65,46 +64,41 @@ Complete timeline and feature roadmap for Yasban development.
 
 ---
 
-#### **Week 2: Database & IPC Handlers**
+#### **Week 2: Database & Server Actions**
 
-**Goal**: Complete all IPC handlers and database operations
+**Goal**: Complete all Server Actions and database operations
 
 **Tasks:**
-- [ ] Implement server IPC handlers:
-  - [ ] `server:list` - List all servers
-  - [ ] `server:get` - Get server by ID
-  - [ ] `server:create` - Create new server
-  - [ ] `server:update` - Update server
-  - [ ] `server:delete` - Delete server
-- [ ] Implement tool IPC handlers:
-  - [ ] `tool:list` - List tools for server
-  - [ ] `tool:get` - Get tool by ID
-  - [ ] `tool:create` - Create tool + version snapshot
-  - [ ] `tool:update` - Update tool + version snapshot
-  - [ ] `tool:delete` - Delete tool + version snapshot
-- [ ] Implement connection IPC handlers:
-  - [ ] `connection:list` - List connections
-  - [ ] `connection:create` - Create connection (encrypted)
-  - [ ] `connection:update` - Update connection
-  - [ ] `connection:delete` - Delete connection
-  - [ ] `connection:test` - Test connection
-- [ ] Implement version IPC handlers:
-  - [ ] `version:list` - List versions for server
-  - [ ] `version:create` - Create manual snapshot
-  - [ ] `version:rollback` - Rollback to version
+- [ ] Implement server Server Actions:
+  - [ ] `createServer` - Create new server
+  - [ ] `updateServer` - Update server
+  - [ ] `deleteServer` - Delete server
+- [ ] Implement tool Server Actions:
+  - [ ] `createTool` - Create tool + version snapshot
+  - [ ] `updateTool` - Update tool + version snapshot
+  - [ ] `deleteTool` - Delete tool + version snapshot
+  - [ ] `testTool` - Test tool execution
+- [ ] Implement connection Server Actions:
+  - [ ] `createConnection` - Create connection (encrypted)
+  - [ ] `updateConnection` - Update connection
+  - [ ] `deleteConnection` - Delete connection
+  - [ ] `testConnection` - Test connection
+- [ ] Implement version Server Actions:
+  - [ ] `createSnapshot` - Create manual snapshot
+  - [ ] `rollbackToVersion` - Rollback to version
 - [ ] Test encryption/decryption with real data
 - [ ] Create database seed script (`prisma/seed.ts`) with 10 templates
 - [ ] Run seed: `npm run db:seed`
-- [ ] Write unit tests for IPC handlers (Vitest)
+- [ ] Write unit tests for Server Actions (Vitest)
 
 **Deliverables:**
-- ✅ All IPC handlers implemented and tested
+- ✅ All Server Actions implemented and tested
 - ✅ Encryption/decryption working for credentials
 - ✅ 10 templates seeded in database
-- ✅ Unit tests for critical handlers (80% coverage)
+- ✅ Unit tests for critical actions (80% coverage)
 
 **Success Criteria:**
-- All IPC handlers respond correctly
+- All Server Actions work correctly
 - Credentials encrypted/decrypted properly
 - No data loss on operations
 
@@ -116,7 +110,7 @@ Complete timeline and feature roadmap for Yasban development.
 
 **Tasks:**
 - [ ] Create sidebar component:
-  - [ ] Server list (from Jotai store)
+  - [ ] Server list (from Server Component)
   - [ ] Add server button
   - [ ] Server status indicators (running/stopped)
 - [ ] Create header component:
@@ -138,7 +132,7 @@ Complete timeline and feature roadmap for Yasban development.
 - [ ] Implement dark mode (Tailwind `dark:` classes)
 - [ ] Create Radix UI components:
   - [ ] Button, Dialog, Select, Tabs, Switch, Toast
-- [ ] Wire up Jotai atoms to IPC calls
+- [ ] Wire up forms to Server Actions with useActionState
 
 **Deliverables:**
 - ✅ Sidebar shows server list
@@ -203,7 +197,7 @@ Complete timeline and feature roadmap for Yasban development.
 **Checklist:**
 - [x] Nextron project running
 - [x] Prisma schema complete (8 models)
-- [x] All IPC handlers implemented
+- [x] All Server Actions implemented
 - [x] Encryption working
 - [x] Basic UI layout (sidebar, header, bottom panel)
 - [x] Dashboard, server detail, connection management pages
@@ -657,7 +651,6 @@ Complete timeline and feature roadmap for Yasban development.
 - [ ] Fix all critical bugs
 - [ ] Performance optimization:
   - [ ] Lazy load Monaco Editor
-  - [ ] Optimize Jotai atoms
   - [ ] Reduce bundle size
 - [ ] Security audit:
   - [ ] Run `npm audit`

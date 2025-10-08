@@ -1,0 +1,516 @@
+'use client';
+
+import { useFormStatus } from 'react-dom';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useActionState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { createTool, updateTool } from '@/app/servers/[id]/tools/actions';
+import { BackButton } from '@/components/ui/back-button';
+import { TestToolDialog } from '@/components/dialogs/TestToolDialog';
+
+interface Tool {
+  id: string;
+  serverId: string;
+  name: string;
+  description: string | null;
+  type: string;
+  config: string;
+  parameters?: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    required: boolean;
+    zodSchema: string;
+    order: number;
+  }>;
+}
+
+interface Connection {
+  id: string;
+  name: string;
+  type: string;
+}
+
+interface ToolFormProps {
+  mode: 'create' | 'edit';
+  serverId: string;
+  connections: Connection[];
+  tool?: Tool;
+}
+
+function SubmitButton({ mode }: { mode: 'create' | 'edit' }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending
+        ? mode === 'create' ? 'Creating...' : 'Updating...'
+        : mode === 'create' ? 'Create Tool' : 'Update Tool'}
+    </Button>
+  );
+}
+
+export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Parse existing config if in edit mode
+  const existingConfig = tool ? JSON.parse(tool.config) : {};
+
+  // Minimal state for conditional rendering and dynamic lists
+  const [toolType, setToolType] = useState(tool?.type || 'sql');
+  const [restMethod, setRestMethod] = useState(existingConfig.method || 'GET');
+  const [parameters, setParameters] = useState<Array<{
+    name: string;
+    type: string;
+    description: string;
+    required: boolean;
+  }>>([]);
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+
+  // Load existing parameters in edit mode
+  useEffect(() => {
+    if (mode === 'edit' && tool?.parameters) {
+      setParameters(tool.parameters.map(param => ({
+        name: param.name,
+        type: zodSchemaToType(param.zodSchema),
+        description: param.description || '',
+        required: param.required,
+      })));
+    }
+  }, [mode, tool]);
+
+  const zodSchemaToType = (zodSchema: string): string => {
+    try {
+      const parsed = JSON.parse(zodSchema);
+      return parsed.type || 'string';
+    } catch {
+      if (zodSchema.includes('number')) return 'number';
+      if (zodSchema.includes('boolean')) return 'boolean';
+      if (zodSchema.includes('array')) return 'array';
+      if (zodSchema.includes('object')) return 'object';
+      return 'string';
+    }
+  };
+
+  const action = mode === 'create' ? createTool : updateTool;
+
+  const [state, formAction] = useActionState(async (prevState: any, formData: FormData) => {
+    // Add parameters as JSON
+    formData.set('parameters', JSON.stringify(parameters));
+
+    const result = await action(formData);
+
+    if (result.success) {
+      router.push(`/servers/${serverId}/tools`);
+      router.refresh();
+    }
+
+    return result;
+  }, null);
+
+  // Handle type change to show/hide fields
+  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value;
+    setToolType(newType);
+  };
+
+  const addParameter = () => {
+    setParameters([...parameters, { name: '', type: 'string', description: '', required: true }]);
+  };
+
+  const removeParameter = (index: number) => {
+    setParameters(parameters.filter((_, i) => i !== index));
+  };
+
+  const updateParameter = (index: number, field: string, value: any) => {
+    const updated = [...parameters];
+    updated[index] = { ...updated[index], [field]: value };
+    setParameters(updated);
+  };
+
+  const showSqlFields = toolType === 'sql';
+  const showRestFields = toolType === 'rest';
+  const showJavascriptFields = toolType === 'javascript';
+  const showWebhookFields = toolType === 'webhook';
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <BackButton fallbackHref={`/servers/${serverId}/tools`} />
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {mode === 'create' ? 'Create New Tool' : 'Edit Tool'}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {mode === 'create'
+              ? 'Add a new tool to this server. Choose a type and configure it.'
+              : 'Update the configuration for this tool.'}
+          </p>
+        </div>
+
+        <form ref={formRef} action={formAction} className="space-y-4">
+          {/* Hidden Fields */}
+          <input type="hidden" name="serverId" value={serverId} />
+          {mode === 'edit' && tool && (
+            <>
+              <input type="hidden" name="toolId" value={tool.id} />
+              <input type="hidden" name="type" value={tool.type} />
+            </>
+          )}
+
+          <div className="flex gap-4">
+            {/* Tool Name */}
+            <div className="flex-grow grid gap-2">
+              <Label htmlFor="name">
+                Tool Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="name"
+                name="name"
+                placeholder="query_users"
+                defaultValue={tool?.name}
+                required
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                A unique name for this tool (lowercase, underscores allowed)
+              </p>
+            </div>
+
+            {/* Tool Type */}
+            <div className="grid gap-2">
+              <Label htmlFor="type">
+                Tool Type <span className="text-red-500">*</span>
+              </Label>
+              <select
+                id="type"
+                name={mode === 'create' ? 'type' : undefined}
+                value={toolType}
+                onChange={handleTypeChange}
+                disabled={mode === 'edit'}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                required={mode === 'create'}
+              >
+                <option value="sql">SQL - Database Query</option>
+                <option value="rest">REST - HTTP API Call</option>
+                <option value="webhook">Webhook - Receive Events</option>
+                <option value="javascript">JavaScript - Custom Code</option>
+              </select>
+              {mode === 'edit' && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Tool type cannot be changed after creation
+                </p>
+              )}
+            </div>
+
+            {/* Connection Selector (SQL Only) */}
+            {showSqlFields && (
+              <div className="grid gap-2">
+                <Label htmlFor="connectionId">
+                  Database Connection {connections.length > 0 && <span className="text-red-500">*</span>}
+                </Label>
+                {connections.length > 0 ? (
+                  <>
+                    <select
+                      id="connectionId"
+                      name="connectionId"
+                      defaultValue={existingConfig.connectionId || ''}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      required
+                    >
+                      <option value="">Select a connection...</option>
+                      {connections.map((conn) => (
+                        <option key={conn.id} value={conn.id}>
+                          {conn.name} ({conn.type})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Select which database connection to use for this SQL tool
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    No connections available. Please create a connection first from the Connections tab.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Description */}
+          <div className="grid gap-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              name="description"
+              placeholder="Describe what this tool does..."
+              defaultValue={tool?.description ?? ''}
+              rows={2}
+            />
+          </div>
+
+          {/* Parameters Section */}
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <Label>Parameters</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addParameter}
+              >
+                + Add Parameter
+              </Button>
+            </div>
+            {parameters.length === 0 ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                No parameters defined. Click "Add Parameter" to define inputs for this tool.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {parameters.map((param, index) => (
+                  <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Name</Label>
+                          <Input
+                            placeholder="param_name"
+                            value={param.name}
+                            onChange={(e) => updateParameter(index, 'name', e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Type</Label>
+                          <select
+                            value={param.type}
+                            onChange={(e) => updateParameter(index, 'type', e.target.value)}
+                            className="flex h-8 w-full rounded-md border border-input bg-background px-3 text-sm"
+                          >
+                            <option value="string">String</option>
+                            <option value="number">Number</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="array">Array</option>
+                            <option value="object">Object</option>
+                          </select>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => removeParameter(index)}
+                        className="mt-5"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Description</Label>
+                      <Input
+                        placeholder="Parameter description..."
+                        value={param.description}
+                        onChange={(e) => updateParameter(index, 'description', e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={param.required}
+                        onChange={(e) => updateParameter(index, 'required', e.target.checked)}
+                        className="h-4 w-4"
+                      />
+                      <Label className="text-xs">Required</Label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Use parameters like <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">{'{{param_name}}'}</code> in your queries/URLs
+            </p>
+          </div>
+
+          {/* Type-Specific Configuration Fields */}
+          {showSqlFields && (
+            <div className="grid gap-2">
+              <Label htmlFor="sqlQuery">
+                SQL Query <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="sqlQuery"
+                name="sqlQuery"
+                placeholder="SELECT * FROM table_name WHERE id = {{user_id}}"
+                defaultValue={existingConfig.query || ''}
+                rows={10}
+                className="font-mono text-sm"
+                required
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Write your SQL query. Use <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">{'{{param_name}}'}</code> for parameters.
+              </p>
+            </div>
+          )}
+
+          {showRestFields && (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="endpoint">
+                  Endpoint URL <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="endpoint"
+                  name="endpoint"
+                  placeholder="https://api.example.com/users/{{user_id}}"
+                  defaultValue={existingConfig.endpoint || ''}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="method">
+                  HTTP Method <span className="text-red-500">*</span>
+                </Label>
+                <select
+                  id="method"
+                  name="method"
+                  value={restMethod}
+                  onChange={(e) => setRestMethod(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  required
+                >
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="PATCH">PATCH</option>
+                  <option value="DELETE">DELETE</option>
+                </select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="headers">Headers (JSON)</Label>
+                <Textarea
+                  id="headers"
+                  name="headers"
+                  placeholder='{"Content-Type": "application/json"}'
+                  defaultValue={existingConfig.headers ? JSON.stringify(existingConfig.headers, null, 2) : '{}'}
+                  rows={3}
+                  className="font-mono text-sm"
+                />
+              </div>
+
+              {restMethod !== 'GET' && (
+                <div className="grid gap-2">
+                  <Label htmlFor="body">Request Body (JSON)</Label>
+                  <Textarea
+                    id="body"
+                    name="body"
+                    placeholder='{"key": "{{param_value}}"}'
+                    defaultValue={existingConfig.body ? JSON.stringify(existingConfig.body, null, 2) : '{}'}
+                    rows={4}
+                    className="font-mono text-sm"
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {showJavascriptFields && (
+            <div className="grid gap-2">
+              <Label htmlFor="jsCode">
+                JavaScript Code <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="jsCode"
+                name="jsCode"
+                placeholder="// Your JavaScript code here&#10;return { result: 'success' };"
+                defaultValue={existingConfig.code || ''}
+                rows={12}
+                className="font-mono text-sm"
+                required
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Write JavaScript code. Access parameters via <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">params</code> object.
+              </p>
+            </div>
+          )}
+
+          {showWebhookFields && (
+            <div className="grid gap-2">
+              <Label htmlFor="webhookPath">
+                Webhook Path <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="webhookPath"
+                name="webhookPath"
+                placeholder="/webhook/my-hook"
+                defaultValue={existingConfig.path || ''}
+                required
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                The URL path where this webhook will receive events
+              </p>
+            </div>
+          )}
+
+          {/* Test Tool Button (Edit Mode Only) */}
+          {mode === 'edit' && tool && (
+            <div className="grid gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTestDialogOpen(true)}
+              >
+                Test Tool
+              </Button>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {state && !state.success && state.error && (
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-400">
+              {state.error}
+            </div>
+          )}
+
+          {/* Form Actions */}
+          <div className="flex gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push(`/servers/${serverId}/tools`)}
+            >
+              Cancel
+            </Button>
+            <SubmitButton mode={mode} />
+          </div>
+        </form>
+      </div>
+
+      {/* Test Tool Dialog */}
+      {mode === 'edit' && tool && (
+        <TestToolDialog
+          open={testDialogOpen}
+          onOpenChange={setTestDialogOpen}
+          tool={{
+            id: tool.id,
+            name: tool.name,
+            description: tool.description ?? undefined,
+            type: tool.type,
+            parameters: tool.parameters?.map(p => ({
+              ...p,
+              description: p.description ?? undefined
+            })),
+          }}
+        />
+      )}
+    </div>
+  );
+}

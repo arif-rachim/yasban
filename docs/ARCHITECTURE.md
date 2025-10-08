@@ -2,7 +2,7 @@
 
 Comprehensive system architecture, design patterns, and implementation details.
 
-**Last Updated**: 2025-01-08
+**Last Updated**: 2025-10-08
 
 ---
 
@@ -16,30 +16,39 @@ Yasban is a desktop application built with Electron and Next.js that enables use
 ┌─────────────────────────────────────────────────────────────────┐
 │                      YASBAN DESKTOP APP                         │
 │                                                                 │
-│  ┌──────────────────────┐        ┌──────────────────────────┐  │
-│  │  Renderer Process    │        │   Main Process           │  │
-│  │  (Next.js 15)        │◄──IPC─►│   (Electron)             │  │
-│  │                      │        │                          │  │
-│  │  ┌────────────────┐  │        │  ┌────────────────────┐  │  │
-│  │  │ React UI       │  │        │  │ IPC Handlers       │  │  │
-│  │  │ (Jotai State)  │  │        │  │ • server-handlers  │  │  │
-│  │  │ • Wizards      │  │        │  │ • tool-handlers    │  │  │
-│  │  │ • Test Panel   │  │        │  │ • version-handlers │  │  │
-│  │  │ • Dashboards   │  │        │  │ • service-handlers │  │  │
-│  │  └────────────────┘  │        │  └────────────────────┘  │  │
-│  │                      │        │           │              │  │
-│  │  ┌────────────────┐  │        │           ▼              │  │
-│  │  │ Monaco Editor  │  │        │  ┌────────────────────┐  │  │
-│  │  │ (SQL/JS)       │  │        │  │ Prisma Client      │  │  │
-│  │  └────────────────┘  │        │  │ (SQLite)           │  │  │
-│  └──────────────────────┘        │  └────────────────────┘  │  │
-│                                   │           │              │  │
-│                                   │           ▼              │  │
-│                                   │  ┌────────────────────┐  │  │
-│                                   │  │ Service Manager    │  │  │
-│                                   │  │ • node-windows     │  │  │
-│                                   │  │ • node-linux       │  │  │
-│                                   │  └────────────────────┘  │  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │                 Electron (Viewer Only)                   │  │
+│  │              • Displays Next.js in webview               │  │
+│  │              • No business logic                         │  │
+│  │              • Window management only                    │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                              │                                  │
+│                              ▼                                  │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │              Next.js 15 (Full App Logic)                 │  │
+│  │                                                          │  │
+│  │  ┌────────────────┐        ┌──────────────────────────┐  │  │
+│  │  │ React UI       │        │   Server Actions         │  │  │
+│  │  │ • Forms        │───────►│   • createTool()         │  │  │
+│  │  │ • Tables       │        │   • updateTool()         │  │  │
+│  │  │ • Dialogs      │        │   • deleteTool()         │  │  │
+│  │  │ • Dashboards   │        │   • testTool()           │  │  │
+│  │  └────────────────┘        │   • testConnection()     │  │  │
+│  │                            └──────────────────────────┘  │  │
+│  │  ┌────────────────┐                    │                │  │
+│  │  │ Monaco Editor  │                    ▼                │  │
+│  │  │ (SQL/JS)       │        ┌──────────────────────────┐  │  │
+│  │  └────────────────┘        │   Prisma Client          │  │  │
+│  │                            │   (SQLite)               │  │  │
+│  │                            └──────────────────────────┘  │  │
+│  │                                        │                │  │
+│  │                                        ▼                │  │
+│  │                            ┌──────────────────────────┐  │  │
+│  │                            │   Service Manager        │  │  │
+│  │                            │   • node-windows         │  │  │
+│  │                            │   • node-linux           │  │  │
+│  │                            └──────────────────────────┘  │  │
+│  └──────────────────────────────────────────────────────────┘  │
 └───────────────────────────────────────────────────────────────┘
                                            │
                                            │ Spawns/Manages
@@ -87,76 +96,64 @@ Yasban is a desktop application built with Electron and Next.js that enables use
 
 ## 🏗️ Component Architecture
 
-### **1. Electron Main Process**
+### **1. Electron Process**
 
-**Responsibility**: Manage application lifecycle, native OS integration, database access, service management.
+**Responsibility**: Window management and hosting Next.js application only. All business logic is handled by Next.js.
 
 **Components:**
 
-#### **1.1 IPC Handlers** (`electron/ipc/`)
+#### **1.1 Main Process** (`electron/main.ts`)
 
-Handles communication between renderer and main process.
-
-```typescript
-// electron/ipc/server-handlers.ts
-import { ipcMain } from 'electron';
-import { prisma } from '../database/client';
-
-ipcMain.handle('server:list', async () => {
-  return await prisma.server.findMany({
-    include: { tools: true, connections: true }
-  });
-});
-
-ipcMain.handle('server:create', async (_, data) => {
-  return await prisma.server.create({
-    data: {
-      ...data,
-      versions: {
-        create: {
-          versionNumber: 1,
-          configSnapshot: JSON.stringify(data),
-          description: 'Initial version',
-          createdBy: 'user'
-        }
-      }
-    }
-  });
-});
-
-// More handlers: server:get, server:update, server:delete, etc.
-```
-
-**Key Handlers:**
-- `server-handlers.ts` - Server CRUD operations
-- `tool-handlers.ts` - Tool CRUD + version snapshots
-- `connection-handlers.ts` - Connection CRUD + encryption
-- `version-handlers.ts` - Version list, rollback
-- `service-handlers.ts` - Service install, start, stop
-- `test-handlers.ts` - Tool execution for testing
-
-#### **1.2 Database Client** (`electron/database/`)
-
-Singleton Prisma client for database access.
+Simple window creation and management.
 
 ```typescript
-// electron/database/client.ts
-import { PrismaClient } from '@prisma/client';
+// electron/main.ts
+import { app, BrowserWindow } from 'electron';
 import path from 'path';
-import { app } from 'electron';
 
-const dbPath = path.join(app.getPath('userData'), 'yasban.db');
+let mainWindow: BrowserWindow | null;
 
-export const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: `file:${dbPath}`
+app.on('ready', () => {
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
     }
+  });
+
+  // Load Next.js app
+  if (process.env.NODE_ENV === 'development') {
+    mainWindow.loadURL('http://localhost:3000');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../out/index.html'));
   }
 });
 ```
 
-#### **1.3 Service Manager** (`electron/services/`)
+**No IPC handlers** - All communication is handled within Next.js using Server Actions.
+
+#### **1.2 Database Access** (`src/lib/prisma.ts`)
+
+Prisma client for Next.js Server Actions.
+
+```typescript
+// src/lib/prisma.ts
+import { PrismaClient } from '@prisma/client';
+
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+export const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    log: ['query'],
+  });
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+```
+
+#### **1.3 Service Manager** (`src/lib/service-manager.ts`)
 
 Manages OS services/daemons.
 
@@ -236,91 +233,99 @@ export function decrypt(ciphertext: string): string {
 
 ---
 
-### **2. Renderer Process (Next.js UI)**
+### **2. Next.js Application**
 
-**Responsibility**: User interface, state management, user interactions.
+**Responsibility**: User interface, state management, business logic, database access, and all application functionality.
 
 **Components:**
 
 #### **2.1 Pages** (`src/app/`)
 
-Next.js App Router pages (file-based routing).
+Next.js App Router pages with Server Actions.
 
 ```
 src/app/
 ├── layout.tsx                 # Root layout
 ├── page.tsx                   # Dashboard
-├── wizard/
-│   ├── sql/page.tsx          # SQL wizard
-│   ├── rest/page.tsx         # REST wizard
-│   └── webhook/page.tsx      # Webhook wizard
 ├── servers/
 │   ├── page.tsx              # Server list
 │   └── [id]/
 │       ├── page.tsx          # Server detail
-│       ├── versions/page.tsx # Version history
-│       └── logs/page.tsx     # Logs
-├── connections/page.tsx      # Connection manager
+│       ├── tools/
+│       │   ├── page.tsx      # Tool list
+│       │   ├── new/page.tsx  # Create tool
+│       │   └── [toolId]/page.tsx # Edit tool
+│       ├── connections/page.tsx  # Connection manager
+│       └── logs/page.tsx         # Logs
 ├── templates/page.tsx        # Template browser
 └── settings/page.tsx         # Settings
 ```
 
-#### **2.2 State Management** (`src/store/`)
+#### **2.2 State Management**
 
-Jotai atoms for global state.
+**No global state management library needed.** State is managed by React Server Components and Next.js:
+
+- **Server State**: Data fetched in Server Components, automatically cached by Next.js
+- **Form State**: Managed by `useActionState` hook with Server Actions
+- **UI State**: Minimal client state using React `useState` for modals, dialogs, etc.
 
 ```typescript
-// src/store/servers.ts
-import { atom } from 'jotai';
-import { api } from '@/lib/ipc';
+// Server Component - Fetches data on server
+export default async function ToolsPage({ params }) {
+  const tools = await prisma.tool.findMany({ where: { serverId: params.id } });
+  return <ToolsTable tools={tools} />;
+}
 
-// Atom to store servers
-export const serversAtom = atom<Server[]>([]);
-
-// Atom to load servers (write-only)
-export const loadServersAtom = atom(
-  null,
-  async (get, set) => {
-    const servers = await api.servers.list();
-    set(serversAtom, servers);
-  }
-);
-
-// Atom for selected server
-export const selectedServerIdAtom = atom<string | null>(null);
-
-// Derived atom for selected server
-export const selectedServerAtom = atom((get) => {
-  const servers = get(serversAtom);
-  const selectedId = get(selectedServerIdAtom);
-  return servers.find(s => s.id === selectedId) || null;
-});
+// Client Component - Minimal UI state
+'use client';
+export function ToolsTable({ tools }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  // UI state only, no global state needed
+}
 ```
 
-#### **2.3 IPC Wrapper** (`src/lib/ipc.ts`)
+**Benefits:**
+- No state synchronization issues
+- Automatic data fetching and caching
+- Simpler architecture
+- Better performance (data fetched on server)
 
-Type-safe IPC wrapper for renderer.
+#### **2.3 Server Actions** (`src/app/*/actions.ts`)
+
+Next.js Server Actions handle all business logic.
 
 ```typescript
-// src/lib/ipc.ts
-import { ipcRenderer } from 'electron';
+// src/app/servers/[id]/tools/actions.ts
+'use server';
 
-export const api = {
-  servers: {
-    list: () => ipcRenderer.invoke('server:list'),
-    get: (id: string) => ipcRenderer.invoke('server:get', id),
-    create: (data: any) => ipcRenderer.invoke('server:create', data),
-    update: (id: string, data: any) => ipcRenderer.invoke('server:update', id, data),
-    delete: (id: string) => ipcRenderer.invoke('server:delete', id),
-  },
-  tools: {
-    list: (serverId: string) => ipcRenderer.invoke('tool:list', serverId),
-    create: (data: any) => ipcRenderer.invoke('tool:create', data),
-    update: (id: string, data: any) => ipcRenderer.invoke('tool:update', id, data),
-    delete: (id: string) => ipcRenderer.invoke('tool:delete', id),
-  },
-  // ... more API methods
-};
+import { revalidatePath } from 'next/cache';
+import prisma from '@/lib/prisma';
+
+export async function createTool(formData: FormData) {
+  const serverId = formData.get('serverId') as string;
+  const name = formData.get('name') as string;
+  const type = formData.get('type') as string;
+
+  const tool = await prisma.tool.create({
+    data: { serverId, name, type, config: '{}' }
+  });
+
+  revalidatePath(`/servers/${serverId}/tools`);
+  return { success: true, data: tool };
+}
+
+export async function updateTool(formData: FormData) {
+  // Similar implementation
+}
+
+export async function testTool(toolId: string, parameters: Record<string, any>) {
+  const { testTool: executeTool } = await import('@/lib/tool-tester');
+
+  const tool = await prisma.tool.findUnique({ where: { id: toolId } });
+  const config = JSON.parse(tool.config);
+
+  return await executeTool(tool.type, config, parameters, tool.serverId);
+}
 ```
 
 ---
@@ -615,25 +620,24 @@ export class SQLExecutor {
 ### **Pattern 1: Tool Creation Flow**
 
 ```
-User fills SQL wizard
+User fills tool form
        ↓
 Click "Save"
        ↓
-src/app/wizard/sql/components/save-button.tsx
+src/components/forms/ToolForm.tsx
        ↓
-api.tools.create(toolData)
+Server Action: createTool(formData)
        ↓
-IPC: 'tool:create'
-       ↓
-electron/ipc/tool-handlers.ts
+src/app/servers/[id]/tools/actions.ts
        ↓
 Prisma Transaction:
   1. Create tool
-  2. Create version snapshot
+  2. Create parameters
+  3. Create version snapshot
        ↓
-Return to UI
+revalidatePath() - refresh page data
        ↓
-Jotai atom updated
+Router navigates to tools list
        ↓
 UI shows new tool
 ```
@@ -643,7 +647,7 @@ UI shows new tool
 ```
 User updates tool
        ↓
-IPC: 'tool:update'
+Server Action: updateTool(formData)
        ↓
 Prisma writes to DB
 Version snapshot created
@@ -669,9 +673,9 @@ User selects version from history
        ↓
 Click "Rollback"
        ↓
-api.versions.rollback(versionNumber)
+Server Action: rollbackToVersion(versionId)
        ↓
-electron/ipc/version-handlers.ts
+src/app/servers/[id]/versions/actions.ts
        ↓
 Prisma Transaction:
   1. Create "before rollback" snapshot
@@ -682,6 +686,8 @@ Prisma Transaction:
 Trigger hot-reload
        ↓
 Server reloaded with old config
+       ↓
+revalidatePath() refreshes UI
        ↓
 UI shows restored version
 ```
@@ -695,9 +701,9 @@ UI shows restored version
 ```
 User enters password
        ↓
-UI sends to main process (IPC)
+Server Action receives formData
        ↓
-electron/crypto/encryption.ts
+src/lib/encryption.ts
        ↓
 Generate encryption key (from machine ID)
        ↓
@@ -707,7 +713,7 @@ Format: iv:authTag:encrypted
 Store encrypted string in SQLite
        ↓
 On use:
-  Load encrypted string
+  Server Action loads encrypted string
        ↓
   Decrypt with machine key
        ↓
@@ -770,4 +776,4 @@ npm run build
 
 **Maintained By**: Yasban Core Team
 **License**: MIT
-**Last Updated**: 2025-01-08
+**Last Updated**: 2025-10-08

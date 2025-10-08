@@ -1,18 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Static HTML export for Electron (production only)
-  output: 'export',
-
-  // Output directory - use .next for dev, out for production build
-  distDir: process.env.NODE_ENV === 'production' ? 'out' : '.next',
-
-  // Disable image optimization (not available in static export)
+  // Keep images unoptimized for Electron
   images: {
     unoptimized: true,
   },
 
-  // Trailing slash helps with file:// routing
-  trailingSlash: true,
+  // Enable server mode (remove static export configs)
+  // trailingSlash removed - not needed for server mode
+
+  // Experimental features for Server Actions
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
 
   // Webpack config adjustments for Electron
   webpack: (config, { isServer }) => {
@@ -25,6 +26,11 @@ const nextConfig = {
         tls: false,
         crypto: false,
       };
+    }
+
+    // Allow server-side modules
+    if (isServer) {
+      config.externals.push('@prisma/client');
     }
 
     return config;

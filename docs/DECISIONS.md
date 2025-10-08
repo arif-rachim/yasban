@@ -2,24 +2,25 @@
 
 This document records all significant architectural decisions made during Yasban development, explaining the rationale behind each choice.
 
-**Last Updated**: 2025-01-08
+**Last Updated**: 2025-10-08
 
 ---
 
 ## Decision Index
 
 1. [Next.js inside Electron (Nextron Pattern)](#1-nextjs-inside-electron-nextron-pattern)
-2. [Jotai over Zustand for State Management](#2-jotai-over-zustand-for-state-management)
-3. [SQLite as Internal Database](#3-sqlite-as-internal-database)
-4. [One Service Per MCP Server (Not Monolithic)](#4-one-service-per-mcp-server-not-monolithic)
-5. [All Three MCP Transports (stdio, SSE, HTTP)](#5-all-three-mcp-transports-stdio-sse-http)
-6. [node-windows/node-linux over Custom Systemd](#6-node-windowsnode-linux-over-custom-systemd)
-7. [Runtime Interpretation over Ahead-of-Time Code Generation](#7-runtime-interpretation-over-ahead-of-time-code-generation)
-8. [No Full JavaScript Execution in Phase 1](#8-no-full-javascript-execution-in-phase-1)
-9. [Version Control as Critical Feature](#9-version-control-as-critical-feature)
-10. [MIT License](#10-mit-license)
-11. [No Telemetry (Privacy-First)](#11-no-telemetry-privacy-first)
-12. [Radix UI over Material UI](#12-radix-ui-over-material-ui)
+2. [Next.js Server Actions over Electron IPC](#2-nextjs-server-actions-over-electron-ipc)
+3. [No Global State Management Library (React Server Components)](#3-no-global-state-management-library-react-server-components)
+4. [SQLite as Internal Database](#4-sqlite-as-internal-database)
+5. [One Service Per MCP Server (Not Monolithic)](#5-one-service-per-mcp-server-not-monolithic)
+6. [All Three MCP Transports (stdio, SSE, HTTP)](#6-all-three-mcp-transports-stdio-sse-http)
+7. [node-windows/node-linux over Custom Systemd](#7-node-windowsnode-linux-over-custom-systemd)
+8. [Runtime Interpretation over Ahead-of-Time Code Generation](#8-runtime-interpretation-over-ahead-of-time-code-generation)
+9. [No Full JavaScript Execution in Phase 1](#9-no-full-javascript-execution-in-phase-1)
+10. [Version Control as Critical Feature](#10-version-control-as-critical-feature)
+11. [MIT License](#11-mit-license)
+12. [No Telemetry (Privacy-First)](#12-no-telemetry-privacy-first)
+13. [Radix UI over Material UI](#13-radix-ui-over-material-ui)
 
 ---
 
@@ -68,76 +69,216 @@ Chosen: **Next.js 15 (App Router) inside Electron**
 
 ---
 
-## 2. Jotai over Zustand for State Management
+## 2. Next.js Server Actions over Electron IPC
 
-**Decision**: Use Jotai for state management, not Zustand or Redux.
+**Decision**: Use Next.js Server Actions for all business logic instead of Electron IPC handlers. Electron is only used as a viewer wrapper.
 
 **Date**: 2025-01-08
 
 ### Context
 
-We needed global state management for:
-- Server list
-- Selected server
-- UI state (modals, dialogs)
-- Tool list
-- Connection list
+When building a desktop app with Next.js inside Electron, there are two main approaches for handling business logic and database access:
 
-Options:
-1. **Zustand** - Popular, simple API
-2. **Jotai** - Atomic state management
-3. **Redux Toolkit** - Traditional, verbose
-4. **React Context** - Built-in, can be complex
+1. **Electron IPC Pattern**: Business logic in Electron main process, communicate via IPC
+   - Database access in Electron main process
+   - IPC handlers for all CRUD operations
+   - Renderer calls ipcRenderer.invoke()
+
+2. **Next.js Server Actions Pattern**: Business logic in Next.js Server Actions
+   - Database access in Next.js server-side
+   - No IPC handlers needed
+   - Electron is just a window wrapper
 
 ### Decision
 
-Chosen: **Jotai**
+Chosen: **Next.js Server Actions**
 
 ### Rationale
 
 **Pros:**
-- ✅ **Atomic state**: Perfect for wizard flows (each step has independent state)
-- ✅ **Minimal boilerplate**: Simpler than Zustand for our use case
-- ✅ **TypeScript-first**: Excellent type inference
-- ✅ **Derived atoms**: Easy computed state (e.g., filtered server list)
-- ✅ **Async atoms**: Built-in async support for IPC calls
-- ✅ **Small bundle size**: 3KB gzipped
-- ✅ **React Suspense support**: Future-proof
+- ✅ **Simpler architecture**: No IPC layer to maintain
+- ✅ **Better DX**: React 19 Server Actions with useActionState
+- ✅ **Type-safe**: FormData with Zod validation, no IPC serialization issues
+- ✅ **Standard Next.js patterns**: Works like any Next.js app
+- ✅ **Better error handling**: Server Actions return results directly
+- ✅ **Easier testing**: Test Server Actions like normal async functions
+- ✅ **Less code**: No IPC wrappers, no preload script complexity
+- ✅ **Revalidation built-in**: revalidatePath() handles cache invalidation
+- ✅ **Progressive enhancement**: Forms work without JavaScript
 
-**Why not Zustand:**
-- Zustand is great but designed for larger, more centralized stores
-- Jotai's atomic approach fits our component-driven architecture better
-- Wizard components benefit from isolated state atoms
+**Cons:**
+- ⚠️ Next.js must run locally (already requirement for Electron app)
+- ⚠️ Electron is minimal, just a window wrapper (acceptable tradeoff)
 
-**Alternatives Considered:**
-- **Zustand**: Good choice, but Jotai is better for isolated component state
-- **Redux**: Too verbose for our needs
-- **Context**: Can cause unnecessary re-renders
+**Why not Electron IPC:**
+- ❌ More boilerplate (IPC handlers + wrapper API + type definitions)
+- ❌ Serialization complexity (can't pass functions, must JSON everything)
+- ❌ Two separate codebases (main process + renderer process)
+- ❌ Harder to debug (IPC channel issues, async boundaries)
+- ❌ Cache invalidation manual (need custom mechanisms)
 
-**Example:**
+### Implementation
+
+**Before (IPC Pattern):**
 ```typescript
-// Jotai - clean and simple
-import { atom } from 'jotai';
-
-export const serversAtom = atom<Server[]>([]);
-export const selectedServerIdAtom = atom<string | null>(null);
-export const selectedServerAtom = atom((get) => {
-  const servers = get(serversAtom);
-  const id = get(selectedServerIdAtom);
-  return servers.find(s => s.id === id) || null;
+// electron/ipc/tool-handlers.ts
+ipcMain.handle('tool:create', async (_, data) => {
+  return await prisma.tool.create({ data });
 });
+
+// src/lib/ipc.ts
+export const api = {
+  tools: {
+    create: (data: any) => ipcRenderer.invoke('tool:create', data),
+  },
+};
+
+// Component
+await api.tools.create(toolData);
 ```
 
+**After (Server Actions Pattern):**
+```typescript
+// src/app/servers/[id]/tools/actions.ts
+'use server';
+
+export async function createTool(formData: FormData) {
+  const tool = await prisma.tool.create({ data: ... });
+  revalidatePath(`/servers/${serverId}/tools`);
+  return { success: true, data: tool };
+}
+
+// Component
+<form action={createTool}>
+  ...
+</form>
+
+// Or with useActionState:
+const [state, formAction] = useActionState(createTool, null);
+```
+
+**Electron's Role:**
+```typescript
+// electron/main.ts - Just window management
+app.on('ready', () => {
+  const win = new BrowserWindow({ ... });
+  win.loadURL('http://localhost:3000'); // Dev
+  // or win.loadFile('out/index.html'); // Production
+});
+// No IPC handlers needed!
+```
+
+### Consequences
+
+- All business logic moved from Electron to Next.js
+- Electron is now just a thin wrapper (window management only)
+- No IPC handlers or preload scripts
+- Database access via Prisma in Server Actions
+- Forms use Server Actions with useActionState
+- Simpler debugging (all in Next.js DevTools)
+- Easier to test (standard async functions)
+
+### Migration Path
+
+1. ✅ Move Prisma client from `electron/` to `src/lib/`
+2. ✅ Create Server Actions in `src/app/*/actions.ts` files
+3. ✅ Replace IPC calls with Server Action calls
+4. ✅ Remove IPC handlers from `electron/ipc/`
+5. ✅ Simplify Electron to window management only
+6. ✅ Update all forms to use Server Actions
+7. ✅ Remove IPC type definitions and wrappers
+
+**Status**: ✅ **Accepted and Implemented**
+
+---
+
+## 3. No Global State Management Library (React Server Components)
+
+**Decision**: Do not use a global state management library (Jotai, Zustand, Redux). Use React Server Components and minimal client state instead.
+
+**Date**: 2025-10-08
+
+### Context
+
+With Next.js 15 and React Server Components, we need to decide how to manage application state:
+
+1. **Traditional approach**: Global state library (Jotai, Zustand, Redux)
+   - Client-side state management
+   - Fetch data on client, store in atoms/store
+   - Synchronize state across components
+
+2. **React Server Components approach**: Server-side state
+   - Fetch data in Server Components
+   - Pass data as props to Client Components
+   - Use Next.js cache for optimization
+   - Minimal client state (UI only)
+
+### Decision
+
+Chosen: **No global state library - React Server Components**
+
+### Rationale
+
+**Pros:**
+- ✅ **Simpler architecture**: No state synchronization needed
+- ✅ **Better performance**: Data fetched on server, cached automatically
+- ✅ **No prop drilling**: Server Components can fetch data where needed
+- ✅ **Automatic revalidation**: `revalidatePath()` handles cache invalidation
+- ✅ **Type-safe**: Props flow from server to client
+- ✅ **Smaller bundle**: No state management library needed
+- ✅ **Server Actions integration**: Forms work directly with actions
+
+**Why not global state:**
+- ❌ Unnecessary with Server Components (data fetched where needed)
+- ❌ Adds complexity (sync client state with server data)
+- ❌ Bundle size overhead
+- ❌ State synchronization bugs
+- ❌ Harder to debug (client + server state)
+
+**Pattern:**
+```typescript
+// Server Component - Fetches data
+export default async function ToolsPage({ params }) {
+  // Data fetched on server
+  const tools = await prisma.tool.findMany({
+    where: { serverId: params.id }
+  });
+
+  // Pass to client component
+  return <ToolsTable tools={tools} serverId={params.id} />;
+}
+
+// Client Component - UI state only
+'use client';
+export function ToolsTable({ tools, serverId }) {
+  const [dialogOpen, setDialogOpen] = useState(false); // UI state
+  const [state, formAction] = useActionState(deleteTool, null); // Form state
+
+  // No global state needed!
+}
+```
+
+**When client state IS needed:**
+- UI state: modals, dialogs, accordions, tabs
+- Form state: controlled inputs, validation
+- Optimistic updates: show changes before server confirms
+
+**When client state is NOT needed:**
+- Data from database (fetch in Server Components)
+- Derived data (compute in Server Components)
+- Shared data (pass as props or re-fetch)
+
 **Consequences:**
-- All state managed with Jotai atoms
-- IPC calls wrapped in async atoms
-- Wizard steps use isolated atoms
+- No `src/store/` directory needed
+- Client Components are simpler (props + UI state only)
+- Server Components handle all data fetching
+- `revalidatePath()` replaces state updates
 
 **Status**: ✅ **Accepted**
 
 ---
 
-## 3. SQLite as Internal Database
+## 4. SQLite as Internal Database
 
 **Decision**: Use SQLite (via Prisma) for Yasban's internal database, not PostgreSQL or MySQL.
 
@@ -197,7 +338,7 @@ Chosen: **SQLite**
 
 ---
 
-## 4. One Service Per MCP Server (Not Monolithic)
+## 5. One Service Per MCP Server (Not Monolithic)
 
 **Decision**: Each MCP server runs as a separate OS service/process, not one monolithic service hosting all servers.
 
@@ -239,7 +380,7 @@ Chosen: **One service per MCP server**
 
 ---
 
-## 5. All Three MCP Transports (stdio, SSE, HTTP)
+## 6. All Three MCP Transports (stdio, SSE, HTTP)
 
 **Decision**: Support all three MCP transports (stdio, SSE, HTTP) in Phase 1, not just stdio.
 
@@ -287,7 +428,7 @@ Chosen: **All three transports**
 
 ---
 
-## 6. node-windows/node-linux over Custom Systemd
+## 7. node-windows/node-linux over Custom Systemd
 
 **Decision**: Use `node-windows` and `node-linux` packages instead of writing custom systemd/Windows Service wrappers.
 
@@ -332,7 +473,7 @@ Chosen: **node-windows + node-linux**
 
 ---
 
-## 7. Runtime Interpretation over Ahead-of-Time Code Generation
+## 8. Runtime Interpretation over Ahead-of-Time Code Generation
 
 **Decision**: Use runtime interpretation (read config from DB and execute) as primary mode, with optional code export as secondary feature.
 
@@ -375,7 +516,7 @@ Chosen: **Runtime interpretation (primary) + Code export (optional)**
 
 ---
 
-## 8. No Full JavaScript Execution in Phase 1
+## 9. No Full JavaScript Execution in Phase 1
 
 **Decision**: Phase 1 supports JavaScript transformation functions only (limited scope), not full custom JavaScript tools. Full JavaScript tools with `isolated-vm` sandboxing in Phase 2.
 
@@ -436,7 +577,7 @@ const files = fs.readdirSync('/');
 
 ---
 
-## 9. Version Control as Critical Feature
+## 10. Version Control as Critical Feature
 
 **Decision**: Version control (auto-snapshots + rollback) is a CRITICAL Phase 1 feature, not Phase 2.
 
@@ -474,7 +615,7 @@ Chosen: **Phase 1 (Critical Feature)**
 
 ---
 
-## 10. MIT License
+## 11. MIT License
 
 **Decision**: Release Yasban under MIT License.
 
@@ -517,7 +658,7 @@ Chosen: **MIT License**
 
 ---
 
-## 11. No Telemetry (Privacy-First)
+## 12. No Telemetry (Privacy-First)
 
 **Decision**: No usage telemetry. Only opt-in crash reporting (Sentry or similar).
 
@@ -558,7 +699,7 @@ Chosen: **No telemetry + Opt-in crash reporting**
 
 ---
 
-## 12. Radix UI over Material UI
+## 13. Radix UI over Material UI
 
 **Decision**: Use Radix UI primitives with Tailwind CSS, not Material UI or Ant Design.
 
@@ -620,4 +761,4 @@ Chosen: **Radix UI + Tailwind CSS**
 
 **Maintained By**: Yasban Core Team
 **License**: MIT
-**Last Updated**: 2025-01-08
+**Last Updated**: 2025-10-08

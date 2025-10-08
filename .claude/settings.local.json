@@ -8,7 +8,13 @@
       "Bash(dir:*)",
       "Bash(npm run clean:*)",
       "Bash(powershell:*)",
-      "Bash(copy:*)"
+      "Bash(copy:*)",
+      "Bash(node:*)",
+      "Bash(cat:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(del:*)",
+      "Bash(Remove-Item -Recurse -Force \"C:\\Users\\arif\\WebstormProjects\\yasban\\src\\app\\api\\servers\")"
     ],
     "deny": [],
     "ask": []

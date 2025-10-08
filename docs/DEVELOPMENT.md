@@ -2,7 +2,7 @@
 
 Complete guide for developers working on Yasban.
 
-**Last Updated**: 2025-01-08
+**Last Updated**: 2025-10-08
 
 ---
 
@@ -58,7 +58,6 @@ yasban/
 │   ├── app/                    # Pages (App Router)
 │   ├── components/             # React components
 │   ├── lib/                    # Utilities
-│   ├── store/                  # Jotai atoms
 │   └── types/                  # TypeScript types
 │
 ├── mcp-runtime/                # MCP server runtime
@@ -144,27 +143,35 @@ export default function PluginsPage() {
 # Automatically routed to /plugins
 ```
 
-#### **3. Adding a New IPC Handler**
+#### **3. Adding a New Server Action**
 
 ```typescript
-// electron/ipc/your-handler.ts
-import { ipcMain } from 'electron';
-import { prisma } from '../database/client';
+// src/app/your-feature/actions.ts
+'use server';
 
-ipcMain.handle('your:action', async (_, data) => {
-  return await prisma.yourModel.create({ data });
-});
+import { revalidatePath } from 'next/cache';
+import prisma from '@/lib/prisma';
 
-// Import in electron/main.ts
-import './ipc/your-handler';
+export async function yourAction(formData: FormData) {
+  const data = {
+    name: formData.get('name') as string,
+    // ... other fields
+  };
 
-// Add to src/lib/ipc.ts
-export const api = {
-  // ... existing
-  your: {
-    action: (data: any) => ipcRenderer.invoke('your:action', data),
-  },
-};
+  const result = await prisma.yourModel.create({ data });
+
+  revalidatePath('/your-feature');
+  return { success: true, data: result };
+}
+
+// Use in component:
+import { yourAction } from './actions';
+
+function YourComponent() {
+  const [state, formAction] = useActionState(yourAction, null);
+
+  return <form action={formAction}>...</form>;
+}
 ```
 
 #### **4. Adding a New Database Model**
@@ -364,40 +371,33 @@ npm run db:seed
 }
 ```
 
-**Or use command line:**
-
-```bash
-npm run dev:debug
-
-# Open chrome://inspect in Chrome
-# Click "inspect" under Remote Target
-```
-
-### **Debugging Renderer Process**
+**Browser DevTools:**
 
 ```bash
 # Start dev server
 npm run dev
 
-# In Electron app:
-# Press Ctrl+Shift+I (Windows/Linux) or Cmd+Option+I (macOS)
-# Chrome DevTools opens
+# Open browser at http://localhost:3000
+# Press F12 for DevTools
+# All Server Actions visible in Network tab
+# Console shows server-side logs
 ```
 
-### **Debugging IPC Communication**
+### **Debugging Server Actions**
 
 ```typescript
-// Add logging in handlers
-ipcMain.handle('server:create', async (_, data) => {
-  console.log('IPC: server:create called with:', data);
-  const result = await prisma.server.create({ data });
-  console.log('IPC: server:create result:', result);
-  return result;
-});
+// Add logging in Server Actions
+export async function createServer(formData: FormData) {
+  console.log('[Server Action] createServer called with:', Object.fromEntries(formData));
 
-// Add logging in renderer
-await api.servers.create(data);
-console.log('Server created:', result);
+  const result = await prisma.server.create({ data: ... });
+
+  console.log('[Server Action] createServer result:', result);
+  return { success: true, data: result };
+}
+
+// View logs in terminal where Next.js is running
+// Or use Next.js DevTools in browser
 ```
 
 ### **Common Issues**
@@ -412,8 +412,9 @@ npm run db:generate
 #### **Issue: Hot reload not working**
 
 ```bash
-# Main process changes require restart
-# Press Ctrl+R in Electron app
+# Next.js changes should auto-reload
+# If not, check terminal for errors
+# Restart dev server if needed: npm run dev
 ```
 
 #### **Issue: Database locked**
@@ -607,7 +608,6 @@ Closes #42
 - **Electron**: https://www.electronjs.org/docs
 - **Next.js**: https://nextjs.org/docs
 - **Prisma**: https://www.prisma.io/docs
-- **Jotai**: https://jotai.org/docs
 - **MCP SDK**: https://modelcontextprotocol.io/docs
 
 ### **Internal Docs**
@@ -651,4 +651,4 @@ A: No, we use SQLite for desktop app simplicity. See `docs/DECISIONS.md`
 
 **Maintained By**: Yasban Core Team
 **License**: MIT
-**Last Updated**: 2025-01-08
+**Last Updated**: 2025-10-08

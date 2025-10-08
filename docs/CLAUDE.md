@@ -25,7 +25,7 @@ Before making ANY changes, you MUST:
 **DO NOT:**
 - ❌ Add Phase 2 features to Phase 1 (scope creep)
 - ❌ Change the tech stack without documenting in DECISIONS.md
-- ❌ Use Zustand (we use Jotai)
+- ❌ Use global state management libraries (we use React Server Components)
 - ❌ Use React Router (we use Next.js App Router)
 - ❌ Skip version snapshots when modifying server config
 - ❌ Remove security features (encryption, SQL limits)
@@ -106,7 +106,7 @@ Before making ANY changes, you MUST:
 |-----------|------------|---------|-----|
 | Desktop Framework | Electron + Next.js 15 | Latest | Next.js inside Electron (Nextron pattern) |
 | Routing | Next.js App Router | 15+ | File-based routing, no React Router needed |
-| State Management | Jotai | 2.10+ | Atomic state, simpler than Zustand for our use case |
+| State Management | React Server Components | Built-in | No global state library needed |
 | UI Library | Tailwind CSS + Radix UI | Latest | shadcn/ui patterns for components |
 | Code Editor | Monaco Editor | 0.52+ | VS Code editor component |
 | Database (Internal) | SQLite + Prisma | Latest | Single file, easy backup, perfect for desktop |
@@ -121,7 +121,7 @@ Before making ANY changes, you MUST:
 
 **Why These Choices?**
 - **Next.js inside Electron**: Best of both worlds - Next.js DX + Electron capabilities
-- **Jotai over Zustand**: Atomic state is simpler for wizard flows and isolated components
+- **React Server Components**: No global state needed, data fetched on server
 - **SQLite over PostgreSQL**: Desktop app needs local-first, portable database
 - **node-windows/node-linux**: Simpler than custom systemd, consistent API
 - **Radix UI**: Accessible primitives, composable, no vendor lock-in
@@ -136,24 +136,9 @@ See `docs/DECISIONS.md` for detailed rationale.
 
 ```
 yasban/
-├── electron/                       # Electron main process
-│   ├── main.ts                    # Entry point, window creation
-│   ├── preload.ts                 # Context bridge API
-│   ├── ipc/                       # IPC handlers
-│   │   ├── server-handlers.ts     # Server CRUD operations
-│   │   ├── tool-handlers.ts       # Tool CRUD operations
-│   │   ├── connection-handlers.ts # Connection management
-│   │   ├── version-handlers.ts    # Version control (snapshots, rollback)
-│   │   ├── service-handlers.ts    # Service installation/management
-│   │   └── test-handlers.ts       # Test execution
-│   ├── services/                  # Service management
-│   │   ├── windows-service.ts     # node-windows wrapper
-│   │   ├── linux-daemon.ts        # node-linux wrapper
-│   │   └── process-manager.ts     # Health checks, logs, restart
-│   ├── database/                  # Prisma client
-│   │   └── client.ts              # Prisma client singleton
-│   └── crypto/                    # Encryption utilities
-│       └── encryption.ts          # AES-256-GCM encrypt/decrypt
+├── electron/                       # Electron main process (viewer only)
+│   ├── main.ts                    # Entry point, window creation only
+│   └── preload.ts                 # Minimal preload (if needed)
 │
 ├── src/                           # Next.js App (App Router)
 │   ├── app/                       # Pages & layouts
@@ -173,16 +158,20 @@ yasban/
 │   │   │   ├── page.tsx           # Server list
 │   │   │   └── [id]/
 │   │   │       ├── page.tsx       # Server detail
-│   │   │       ├── edit/          # Edit server
+│   │   │       ├── tools/         # Tools
+│   │   │       │   ├── page.tsx   # Tool list
+│   │   │       │   ├── new/page.tsx # Create tool
+│   │   │       │   ├── [toolId]/page.tsx # Edit tool
+│   │   │       │   └── actions.ts # Tool Server Actions
+│   │   │       ├── connections/   # Connection manager
+│   │   │       │   ├── page.tsx
+│   │   │       │   └── actions.ts # Connection Server Actions
 │   │   │       ├── versions/      # Version history
-│   │   │       ├── logs/          # Server logs
-│   │   │       └── tools/         # Tool list for server
-│   │   ├── connections/           # Connection manager
-│   │   │   ├── page.tsx
-│   │   │   └── [id]/
+│   │   │       │   ├── page.tsx
+│   │   │       │   └── actions.ts # Version Server Actions
+│   │   │       └── logs/          # Server logs
 │   │   ├── templates/             # Template browser
-│   │   ├── settings/              # App settings
-│   │   └── api/                   # Internal API routes (minimal use)
+│   │   └── settings/              # App settings
 │   │
 │   ├── components/                # React components
 │   │   ├── ui/                    # Radix UI components
@@ -207,17 +196,13 @@ yasban/
 │   │       └── bottom-panel.tsx
 │   │
 │   ├── lib/                       # Utilities
-│   │   ├── ipc.ts                 # IPC wrapper for renderer
-│   │   ├── prisma.ts              # Prisma client (if needed in renderer)
+│   │   ├── prisma.ts              # Prisma client for Server Actions
+│   │   ├── encryption.ts          # AES-256-GCM encrypt/decrypt
+│   │   ├── connection-tester.ts   # Test connections
+│   │   ├── tool-tester.ts         # Test tools
+│   │   ├── logger.ts              # Winston logger
 │   │   ├── validation.ts          # Zod schemas
 │   │   └── utils.ts               # Helper functions
-│   │
-│   ├── store/                     # Jotai atoms
-│   │   ├── servers.ts             # Server state
-│   │   ├── tools.ts               # Tool state
-│   │   ├── connections.ts         # Connection state
-│   │   ├── ui.ts                  # UI state (modals, dialogs)
-│   │   └── settings.ts            # App settings
 │   │
 │   └── types/                     # TypeScript types
 │       ├── server.ts
@@ -570,14 +555,13 @@ npm run package
 
 **Week 1: Project Setup** ← **START HERE**
 - [ ] Initialize Nextron project (`npx create-nextron-app yasban --example with-typescript`)
-- [ ] Install dependencies (Jotai, Prisma, Radix UI, etc.)
+- [ ] Install dependencies (Prisma, Radix UI, etc.)
 - [ ] Configure Next.js for static export (`next.config.js`)
 - [ ] Setup Tailwind CSS + basic Radix UI components
 - [ ] Create Prisma schema with all 8 models
 - [ ] Run first migration
 - [ ] Create encryption utilities (AES-256-GCM)
-- [ ] Setup basic IPC handler (e.g., `server:list`)
-- [ ] Create Jotai store structure (atoms defined)
+- [ ] Setup basic Server Action (e.g., server list)
 - [ ] Build basic layout (sidebar + main panel)
 - [ ] README with setup instructions
 
@@ -665,8 +649,8 @@ npm run package
 
 ## 🆘 Common Questions
 
-### **Q: Can I use Zustand for state management?**
-**A**: ❌ NO. We use Jotai. This decision is final. See `docs/DECISIONS.md` for rationale.
+### **Q: Can I use Zustand or Jotai for state management?**
+**A**: ❌ NO. We use React Server Components and minimal client state. No global state library is needed. See `docs/DECISIONS.md` for rationale.
 
 ### **Q: Can I add OAuth authentication in Phase 1?**
 **A**: ❌ NO. Phase 1 only supports API Key auth. OAuth is Phase 2.
@@ -754,6 +738,6 @@ npm run package
 
 ---
 
-**Last Updated**: 2025-01-08
+**Last Updated**: 2025-10-08
 **Maintained By**: Yasban Core Team
 **License**: MIT

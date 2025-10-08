@@ -1,10 +1,29 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'path';
 
-// Check if in development mode
-const isDev = !app.isPackaged;
+/**
+ * Yasban - Electron Main Process
+ *
+ * Simple viewer shell for the Next.js application.
+ * No IPC, no database, no backend logic - just a window.
+ */
 
+const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+
+// Single instance lock - prevent multiple instances
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -22,11 +41,9 @@ function createWindow() {
   });
 
   if (isDev) {
-    // Development: Load from Next.js dev server
-    mainWindow.loadURL('http://localhost:3000');
+    mainWindow.loadURL(process.env.ELECTRON_START_URL || 'http://localhost:3001');
     mainWindow.webContents.openDevTools();
   } else {
-    // Production: Load from built files
     mainWindow.loadFile(path.join(__dirname, '../out/index.html'));
   }
 
@@ -50,6 +67,3 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
-
-// Import IPC handlers
-import './ipc/server-handlers';
