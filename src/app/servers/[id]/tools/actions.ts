@@ -214,9 +214,78 @@ export async function testTool(toolId: string, parameters: Record<string, any>) 
     // Execute tool test
     const result = await executeTool(tool.type, config, parameters, tool.serverId);
 
+    // If test was successful and schema was captured, save it
+    if (result.success && result.schema && Object.keys(result.schema).length > 0) {
+      await prisma.tool.update({
+        where: { id: toolId },
+        data: {
+          resultSchema: JSON.stringify(result.schema),
+        },
+      });
+
+      revalidatePath(`/servers/${tool.serverId}/tools`);
+    }
+
     return result;
   } catch (error: any) {
     console.error('Error testing tool:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateToolSchema(
+  toolId: string,
+  schema: Record<string, { type: string; description?: string }>
+) {
+  try {
+    const tool = await prisma.tool.findUnique({
+      where: { id: toolId },
+      select: { serverId: true },
+    });
+
+    if (!tool) {
+      return { success: false, error: 'Tool not found' };
+    }
+
+    await prisma.tool.update({
+      where: { id: toolId },
+      data: {
+        resultSchema: JSON.stringify(schema),
+      },
+    });
+
+    revalidatePath(`/servers/${tool.serverId}/tools`);
+
+    return { success: true, message: 'Schema updated successfully' };
+  } catch (error: any) {
+    console.error('Error updating tool schema:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteToolSchema(toolId: string) {
+  try {
+    const tool = await prisma.tool.findUnique({
+      where: { id: toolId },
+      select: { serverId: true },
+    });
+
+    if (!tool) {
+      return { success: false, error: 'Tool not found' };
+    }
+
+    await prisma.tool.update({
+      where: { id: toolId },
+      data: {
+        resultSchema: null,
+      },
+    });
+
+    revalidatePath(`/servers/${tool.serverId}/tools`);
+
+    return { success: true, message: 'Schema deleted successfully' };
+  } catch (error: any) {
+    console.error('Error deleting tool schema:', error);
     return { success: false, error: error.message };
   }
 }

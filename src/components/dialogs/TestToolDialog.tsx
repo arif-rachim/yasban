@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { testTool } from '@/app/servers/[id]/tools/actions';
+import { SchemaEditor } from '@/components/forms/SchemaEditor';
 
 interface TestToolDialogProps {
   open: boolean;
@@ -144,6 +145,16 @@ export function TestToolDialog({
                 <p className="text-xs text-green-600 dark:text-green-500">
                   HTTP {result.statusCode}
                 </p>
+              )}
+              {result.schema && Object.keys(result.schema).length > 0 && (
+                <div className="mt-2">
+                  <Label className="text-xs font-semibold text-green-700 dark:text-green-400 mb-2 block">
+                    Captured Schema:
+                  </Label>
+                  <div className="bg-white dark:bg-gray-950 rounded border border-green-200 dark:border-green-800">
+                    <SchemaEditor schema={result.schema} editable={false} />
+                  </div>
+                </div>
               )}
               {result.data && (
                 <div className="mt-2">

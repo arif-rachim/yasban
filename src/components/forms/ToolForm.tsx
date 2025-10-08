@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { createTool, updateTool } from '@/app/servers/[id]/tools/actions';
+import { createTool, updateTool, updateToolSchema, deleteToolSchema } from '@/app/servers/[id]/tools/actions';
 import { BackButton } from '@/components/ui/back-button';
 import { TestToolDialog } from '@/components/dialogs/TestToolDialog';
+import { SchemaEditor } from '@/components/forms/SchemaEditor';
 
 interface Tool {
   id: string;
@@ -18,6 +19,7 @@ interface Tool {
   description: string | null;
   type: string;
   config: string;
+  resultSchema?: string | null;
   parameters?: Array<{
     id: string;
     name: string;
@@ -70,8 +72,11 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
     required: boolean;
   }>>([]);
   const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [resultSchema, setResultSchema] = useState<Record<string, { type: string; description?: string }>>({});
+  const [savingSchema, setSavingSchema] = useState(false);
+  const [deletingSchema, setDeletingSchema] = useState(false);
 
-  // Load existing parameters in edit mode
+  // Load existing parameters and schema in edit mode
   useEffect(() => {
     if (mode === 'edit' && tool?.parameters) {
       setParameters(tool.parameters.map(param => ({
@@ -80,6 +85,14 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
         description: param.description || '',
         required: param.required,
       })));
+    }
+    if (mode === 'edit' && tool?.resultSchema) {
+      try {
+        const parsed = JSON.parse(tool.resultSchema);
+        setResultSchema(parsed);
+      } catch (err) {
+        console.error('Failed to parse result schema:', err);
+      }
     }
   }, [mode, tool]);
 
@@ -457,6 +470,76 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 The URL path where this webhook will receive events
               </p>
+            </div>
+          )}
+
+          {/* Result Schema Editor (SQL Tools Only, Edit Mode) */}
+          {mode === 'edit' && tool && toolType === 'sql' && (
+            <div className="grid gap-2">
+              <Label className="text-base font-semibold">Result Schema</Label>
+              {Object.keys(resultSchema).length > 0 ? (
+                <>
+                  <SchemaEditor
+                    schema={resultSchema}
+                    onChange={setResultSchema}
+                    editable={true}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={async () => {
+                        setSavingSchema(true);
+                        try {
+                          const result = await updateToolSchema(tool.id, resultSchema);
+                          if (result.success) {
+                            alert('Schema updated successfully!');
+                          } else {
+                            alert(`Error: ${result.error}`);
+                          }
+                        } catch (err: any) {
+                          alert(`Error: ${err.message}`);
+                        } finally {
+                          setSavingSchema(false);
+                        }
+                      }}
+                      disabled={savingSchema || deletingSchema}
+                    >
+                      {savingSchema ? 'Saving Schema...' : 'Save Schema'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      onClick={async () => {
+                        if (!confirm('Are you sure you want to delete the schema? This action cannot be undone.')) {
+                          return;
+                        }
+                        setDeletingSchema(true);
+                        try {
+                          const result = await deleteToolSchema(tool.id);
+                          if (result.success) {
+                            setResultSchema({});
+                            alert('Schema deleted successfully!');
+                          } else {
+                            alert(`Error: ${result.error}`);
+                          }
+                        } catch (err: any) {
+                          alert(`Error: ${err.message}`);
+                        } finally {
+                          setDeletingSchema(false);
+                        }
+                      }}
+                      disabled={savingSchema || deletingSchema}
+                    >
+                      {deletingSchema ? 'Deleting Schema...' : 'Clear Schema'}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No schema captured yet. Run a test to automatically capture the result schema.
+                </p>
+              )}
             </div>
           )}
 

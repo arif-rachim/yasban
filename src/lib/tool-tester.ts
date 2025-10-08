@@ -25,6 +25,7 @@ interface TestResult {
   data?: any;
   rowCount?: number;
   statusCode?: number;
+  schema?: Record<string, { type: string; description?: string }>;
 }
 
 /**
@@ -69,13 +70,226 @@ function formatConnectionString(
  */
 function substituteParameters(template: string, parameters: Record<string, any>): string {
   let result = template;
-  debugger;
   for (const [key, value] of Object.entries(parameters)) {
     // Replace {{paramName}} with value
     const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
     result = result.replace(regex, String(value));
   }
   return result;
+}
+
+/**
+ * Infer JSON Schema type from a value
+ * Returns: "null", "boolean", "integer", "number", "array", "object", "string"
+ */
+function inferJsonSchemaType(value: any): string {
+  if (value === null || value === undefined) {
+    return 'null';
+  }
+
+  if (typeof value === 'boolean') {
+    return 'boolean';
+  }
+
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? 'integer' : 'number';
+  }
+
+  if (Array.isArray(value)) {
+    return 'array';
+  }
+
+  if (typeof value === 'object') {
+    return 'object';
+  }
+
+  return 'string';
+}
+
+/**
+ * Infer schema from query result data
+ * Examines the result rows and determines the type for each column
+ * Used as fallback when driver field metadata is unavailable
+ */
+function inferSchema(data: any[]): Record<string, { type: string }> {
+  if (!data || data.length === 0) {
+    return {};
+  }
+
+  const schema: Record<string, { type: string }> = {};
+  const firstRow = data[0];
+
+  if (!firstRow || typeof firstRow !== 'object') {
+    return {};
+  }
+
+  // Get all column names from first row
+  const columnNames = Object.keys(firstRow);
+
+  for (const columnName of columnNames) {
+    let inferredType = 'string';
+
+    // Try to infer type from first row
+    let value = firstRow[columnName];
+
+    // If first row has null/undefined, scan up to 10 rows to find a non-null value
+    if (value === null || value === undefined) {
+      for (let i = 1; i < Math.min(data.length, 10); i++) {
+        if (data[i] && data[i][columnName] !== null && data[i][columnName] !== undefined) {
+          value = data[i][columnName];
+          break;
+        }
+      }
+    }
+
+    inferredType = inferJsonSchemaType(value);
+
+    schema[columnName] = { type: inferredType };
+  }
+
+  return schema;
+}
+
+/**
+ * Map PostgreSQL data type ID (OID) to JSON Schema type
+ * Reference: https://github.com/brianc/node-pg-types
+ */
+function mapPostgresType(dataTypeID: number): string {
+  const typeMap: Record<number, string> = {
+    16: 'boolean',      // bool
+    20: 'integer',      // int8 (bigint)
+    21: 'integer',      // int2 (smallint)
+    23: 'integer',      // int4 (integer)
+    26: 'integer',      // oid
+    700: 'number',      // float4 (real)
+    701: 'number',      // float8 (double precision)
+    1700: 'number',     // numeric/decimal
+    25: 'string',       // text
+    1042: 'string',     // bpchar (char)
+    1043: 'string',     // varchar
+    1082: 'string',     // date
+    1083: 'string',     // time
+    1114: 'string',     // timestamp
+    1184: 'string',     // timestamptz
+    114: 'object',      // json
+    3802: 'object',     // jsonb
+    1000: 'array',      // _bool (boolean array)
+    1005: 'array',      // _int2 (smallint array)
+    1007: 'array',      // _int4 (integer array)
+    1016: 'array',      // _int8 (bigint array)
+    1021: 'array',      // _float4 (real array)
+    1022: 'array',      // _float8 (double precision array)
+    1009: 'array',      // _text (text array)
+  };
+  return typeMap[dataTypeID] || 'string';
+}
+
+/**
+ * Map MySQL column type to JSON Schema type
+ * Reference: mysql2 FieldPacket.columnType
+ */
+function mapMysqlType(columnType: number): string {
+  const typeMap: Record<number, string> = {
+    1: 'integer',       // TINYINT
+    2: 'integer',       // SMALLINT
+    3: 'integer',       // INT
+    8: 'integer',       // BIGINT
+    9: 'integer',       // MEDIUMINT
+    4: 'number',        // FLOAT
+    5: 'number',        // DOUBLE
+    246: 'number',      // DECIMAL/NUMERIC
+    0: 'number',        // DECIMAL (old)
+    7: 'string',        // TIMESTAMP
+    10: 'string',       // DATE
+    11: 'string',       // TIME
+    12: 'string',       // DATETIME
+    13: 'string',       // YEAR
+    15: 'string',       // VARCHAR
+    253: 'string',      // VARCHAR
+    254: 'string',      // CHAR
+    249: 'string',      // TINYTEXT
+    250: 'string',      // MEDIUMTEXT
+    251: 'string',      // LONGTEXT
+    252: 'string',      // BLOB/TEXT
+    245: 'object',      // JSON
+    16: 'boolean',      // BIT (often used for boolean)
+  };
+  return typeMap[columnType] || 'string';
+}
+
+/**
+ * Map SQL Server (MSSQL) type name to JSON Schema type
+ * Reference: tedious column metadata
+ */
+function mapMssqlType(typeName: string): string {
+  const lowerType = typeName.toLowerCase();
+
+  if (lowerType === 'bit') return 'boolean';
+
+  if (['tinyint', 'smallint', 'int', 'bigint'].includes(lowerType)) {
+    return 'integer';
+  }
+
+  if (['decimal', 'numeric', 'float', 'real', 'money', 'smallmoney'].includes(lowerType)) {
+    return 'number';
+  }
+
+  if (['date', 'datetime', 'datetime2', 'smalldatetime', 'time', 'datetimeoffset'].includes(lowerType)) {
+    return 'string';
+  }
+
+  if (['varchar', 'nvarchar', 'char', 'nchar', 'text', 'ntext', 'xml'].includes(lowerType)) {
+    return 'string';
+  }
+
+  return 'string';
+}
+
+/**
+ * Map SQLite type name to JSON Schema type
+ * Reference: SQLite affinity types
+ */
+function mapSqliteType(typeName: string | null): string {
+  if (!typeName) return 'string';
+
+  const lowerType = typeName.toLowerCase();
+
+  if (lowerType.includes('int')) return 'integer';
+  if (lowerType.includes('real') || lowerType.includes('float') || lowerType.includes('double')) {
+    return 'number';
+  }
+  if (lowerType.includes('bool')) return 'boolean';
+  if (lowerType.includes('blob')) return 'string'; // Binary data as string
+
+  return 'string';
+}
+
+/**
+ * Create schema from database field metadata
+ */
+function createSchemaFromFields(
+  fields: Array<{ name: string; [key: string]: any }>,
+  connectionType: string
+): Record<string, { type: string }> {
+  const schema: Record<string, { type: string }> = {};
+
+  for (const field of fields) {
+    let type = 'string';
+
+    if (connectionType === 'postgresql' && 'dataTypeID' in field) {
+      type = mapPostgresType(field.dataTypeID);
+    } else if (connectionType === 'mysql' && 'columnType' in field) {
+      type = mapMysqlType(field.columnType);
+    } else if (connectionType === 'mssql' && 'typeName' in field) {
+      type = mapMssqlType(field.typeName);
+    } else if (connectionType === 'sqlite' && 'type' in field) {
+      type = mapSqliteType(field.type);
+    }
+
+    schema[field.name] = { type };
+  }
+
+  return schema;
 }
 
 /**
@@ -127,6 +341,7 @@ async function testSQLTool(
   try {
     let result: any;
     let rowCount = 0;
+    let fieldsSchema: Record<string, { type: string }> = {};
 
     if (connectionType === 'postgresql') {
       const client = new PgClient({
@@ -141,8 +356,18 @@ async function testSQLTool(
 
       await client.connect();
       const queryResult = await client.query(query);
+
       result = queryResult.rows;
       rowCount = queryResult.rowCount || 0;
+
+      // Extract schema from PostgreSQL field metadata
+      if (queryResult.fields && queryResult.fields.length > 0) {
+        fieldsSchema = createSchemaFromFields(
+          queryResult.fields.map(f => ({ name: f.name, dataTypeID: f.dataTypeID })),
+          'postgresql'
+        );
+      }
+
       await client.end();
     } else if (connectionType === 'mysql') {
       const conn = await mysql.createConnection({
@@ -155,12 +380,21 @@ async function testSQLTool(
         connectTimeout: 10000,
       });
 
-      const [rows] = await conn.query(query);
+      const [rows, fields] = await conn.query(query);
       result = rows;
       rowCount = Array.isArray(rows) ? rows.length : 0;
+
+      // Extract schema from MySQL field metadata
+      if (fields && Array.isArray(fields) && fields.length > 0) {
+        fieldsSchema = createSchemaFromFields(
+          fields.map((f: any) => ({ name: f.name, columnType: f.columnType })),
+          'mysql'
+        );
+      }
+
       await conn.end();
     } else if (connectionType === 'mssql') {
-      result = await new Promise((resolve, reject) => {
+      const mssqlResult: { rows: any[]; fields: any[] } = await new Promise((resolve, reject) => {
         const conn = new TediousConnection({
           server: connectionConfig.host || 'localhost',
           authentication: {
@@ -186,13 +420,22 @@ async function testSQLTool(
           }
 
           const rows: any[] = [];
+          let columnMetadata: any[] = [];
+
           const request = new TediousRequest(query, (err) => {
             conn.close();
             if (err) {
               reject(err);
             } else {
-              resolve(rows);
+              resolve({ rows, fields: columnMetadata });
             }
+          });
+
+          request.on('columnMetadata', (columns: any) => {
+            columnMetadata = columns.map((col: any) => ({
+              name: col.colName,
+              typeName: col.type.name,
+            }));
           });
 
           request.on('row', (columns: any) => {
@@ -209,11 +452,28 @@ async function testSQLTool(
         conn.connect();
       });
 
+      result = mssqlResult.rows;
       rowCount = result.length;
+
+      // Extract schema from MSSQL field metadata
+      if (mssqlResult.fields && mssqlResult.fields.length > 0) {
+        fieldsSchema = createSchemaFromFields(mssqlResult.fields, 'mssql');
+      }
     } else if (connectionType === 'sqlite') {
       const db = new Database(connectionConfig.path || '');
-      result = db.prepare(query).all();
+      const stmt = db.prepare(query);
+      result = stmt.all();
       rowCount = result.length;
+
+      // Extract schema from SQLite column metadata
+      const columns = stmt.columns();
+      if (columns && columns.length > 0) {
+        fieldsSchema = createSchemaFromFields(
+          columns.map(c => ({ name: c.name, type: c.type })),
+          'sqlite'
+        );
+      }
+
       db.close();
     } else {
       return {
@@ -224,6 +484,13 @@ async function testSQLTool(
     }
 
     const duration = Date.now() - startTime;
+
+    // Use driver field metadata schema, fallback to inferSchema if unavailable
+    let schema = fieldsSchema;
+    if (!schema || Object.keys(schema).length === 0) {
+      schema = inferSchema(result); // Fallback for edge cases
+    }
+
     logger.info(`✓ SQL tool test successful (${duration}ms)`, {
       rowCount,
       duration,
@@ -235,6 +502,7 @@ async function testSQLTool(
       duration,
       data: result,
       rowCount,
+      schema,
     };
   } catch (error: any) {
     const duration = Date.now() - startTime;

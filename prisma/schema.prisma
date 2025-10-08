@@ -36,14 +36,15 @@ model Server {
 // Tool - Tool definitions (SQL, REST, Webhook, JS)
 // ============================================
 model Tool {
-  id          String      @id @default(uuid())
-  serverId    String
-  server      Server      @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  id           String      @id @default(uuid())
+  serverId     String
+  server       Server      @relation(fields: [serverId], references: [id], onDelete: Cascade)
 
-  name        String
-  description String?
-  type        String      // 'sql' | 'rest' | 'webhook' | 'javascript'
-  config      String      // JSON configuration specific to tool type
+  name         String
+  description  String?
+  type         String      // 'sql' | 'rest' | 'webhook' | 'javascript'
+  config       String      // JSON configuration specific to tool type
+  resultSchema String?     // JSON: { "columnName": { "type": "integer", "description": "..." } }
 
   // Relationships
   parameters  Parameter[]
