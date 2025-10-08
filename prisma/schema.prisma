@@ -1,0 +1,182 @@
+// Yasban - Prisma Schema
+// Complete database schema for MCP server management
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Server - MCP server configurations
+// ============================================
+model Server {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  status      String   @default("stopped") // 'stopped' | 'running'
+  transport   String   @default("stdio")   // 'stdio' | 'sse' | 'http'
+  runMode     String   @default("gui")     // 'gui' | 'service'
+
+  // Relationships
+  tools       Tool[]
+  connections Connection[]
+  versions    Version[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+// ============================================
+// Tool - Tool definitions (SQL, REST, Webhook, JS)
+// ============================================
+model Tool {
+  id          String      @id @default(uuid())
+  serverId    String
+  server      Server      @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  type        String      // 'sql' | 'rest' | 'webhook' | 'javascript'
+  config      String      // JSON configuration specific to tool type
+
+  // Relationships
+  parameters  Parameter[]
+  testCases   TestCase[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([serverId, name]) // Tool names must be unique per server
+  @@index([serverId])
+  @@index([type])
+}
+
+// ============================================
+// Connection - Database/API connections (encrypted)
+// ============================================
+model Connection {
+  id        String   @id @default(uuid())
+  serverId  String
+  server    Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  name      String
+  type      String   // 'postgresql' | 'mysql' | 'mssql' | 'sqlite' | 'rest_api'
+  config    String   // Encrypted JSON (connection string, host, port, credentials, etc.)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serverId, name]) // Connection names must be unique per server
+  @@index([serverId])
+}
+
+// ============================================
+// Parameter - Tool parameters with Zod schemas
+// ============================================
+model Parameter {
+  id          String  @id @default(uuid())
+  toolId      String
+  tool        Tool    @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  name        String
+  zodSchema   String  // Serialized Zod schema (JSON representation)
+  description String?
+  required    Boolean @default(true)
+  order       Int     @default(0) // Display order in UI
+
+  @@unique([toolId, name]) // Parameter names must be unique per tool
+  @@index([toolId])
+}
+
+// ============================================
+// TestCase - Saved test cases for tools
+// ============================================
+model TestCase {
+  id        String   @id @default(uuid())
+  toolId    String
+  tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  name      String
+  inputs    String   // JSON object with parameter values
+  expected  String?  // Optional expected output for validation
+
+  createdAt DateTime @default(now())
+
+  @@index([toolId])
+}
+
+// ============================================
+// Version - Version snapshots for rollback (CRITICAL)
+// ============================================
+model Version {
+  id             String   @id @default(uuid())
+  serverId       String
+  server         Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  versionNumber  Int      // Auto-incremented per server (1, 2, 3, ...)
+  configSnapshot String   // Complete JSON snapshot of server + tools + connections
+  description    String?  // "Auto-save: Tool created" or user description
+  createdBy      String   @default("system") // "user" | "system"
+
+  createdAt      DateTime @default(now())
+
+  @@unique([serverId, versionNumber])
+  @@index([serverId])
+  @@index([createdAt])
+}
+
+// ============================================
+// Template - Built-in templates
+// ============================================
+model Template {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  category    String   // 'sql' | 'rest' | 'webhook' | 'javascript'
+  config      String   // JSON template (can be used to create new tools)
+  isBuiltIn   Boolean  @default(false)
+  downloads   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+}
+
+// ============================================
+// Log - Application logs
+// ============================================
+model Log {
+  id        String   @id @default(uuid())
+  serverId  String?  // Optional - logs can be app-wide or server-specific
+  level     String   // 'info' | 'warn' | 'error' | 'debug'
+  message   String
+  metadata  String?  // Optional JSON metadata (stack trace, request details, etc.)
+
+  createdAt DateTime @default(now())
+
+  @@index([serverId])
+  @@index([level])
+  @@index([createdAt])
+}
+
+// ============================================
+// Environment - Environment variables (encrypted)
+// ============================================
+model Environment {
+  id        String   @id @default(uuid())
+  serverId  String   // Not a FK to allow server-independent env vars
+  key       String
+  value     String   // Encrypted value (AES-256-GCM)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([serverId, key]) // Env var keys must be unique per server
+  @@index([serverId])
+}

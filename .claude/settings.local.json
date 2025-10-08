@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "*",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(npx electron:*)",
+      "Bash(dir:*)",
+      "Bash(npm run clean:*)",
+      "Bash(powershell:*)",
+      "Bash(copy:*)"
     ],
     "deny": [],
     "ask": []
