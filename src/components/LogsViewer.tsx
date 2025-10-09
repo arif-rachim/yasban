@@ -267,12 +267,8 @@ export function LogsViewer({ serverId, serverStatus }: LogsViewerProps) {
         ) : (
           <div className="space-y-0.5">
             {filteredLogs.map((log, index) => (
-              <div key={index} className="flex gap-3 hover:bg-gray-800/50 px-2 py-0.5 rounded">
-                <span className="text-gray-500 flex-shrink-0">{log.timestamp}</span>
-                <span className={`font-bold flex-shrink-0 w-16 ${getLogColor(log.level)}`}>
-                  [{log.level}]
-                </span>
-                <span className="text-gray-300 flex-1 break-all">{log.message}</span>
+              <div key={index} className="hover:bg-gray-800/50 px-2 py-0.5 rounded font-mono">
+                <span className={getLogColor(log.level)}>{log.raw}</span>
               </div>
             ))}
             <div ref={logsEndRef} />
