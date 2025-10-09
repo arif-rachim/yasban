@@ -75,6 +75,16 @@ export async function updateServer(serverId: string, formData: FormData) {
 
 export async function deleteServer(serverId: string) {
   try {
+    // Manually delete Environment and Log entries (no FK cascade)
+    await prisma.environment.deleteMany({
+      where: { serverId },
+    });
+
+    await prisma.log.deleteMany({
+      where: { serverId },
+    });
+
+    // Delete server (auto-cascades: Tools, Connections, Versions, Parameters, TestCases)
     await prisma.server.delete({
       where: { id: serverId },
     });

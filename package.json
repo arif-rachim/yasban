@@ -33,6 +33,7 @@
     "lint": "next lint",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "clean": "rimraf out dist .next node_modules/.cache",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
     "postinstall": "prisma generate && electron-builder install-app-deps"
   },
   "dependencies": {
@@ -83,6 +84,7 @@
     "cross-env": "^7.0.3",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
+    "electron-rebuild": "^3.2.9",
     "electron-updater": "^6.3.9",
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.0.3",
