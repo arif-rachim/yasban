@@ -167,7 +167,10 @@ export function DashboardClient({ servers }: DashboardClientProps) {
                   </div>
                 </button>
 
-                <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left">
+                <button
+                  onClick={() => router.push('/templates')}
+                  className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left"
+                >
                   <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                     Browse Templates
                   </div>
