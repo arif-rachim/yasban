@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ServerNameInput } from '@/components/ui/server-name-input';
 import { createServer } from '@/app/actions/servers';
 import { updateServerSettings } from '@/app/servers/[id]/settings/actions';
 import { BackButton } from '@/components/ui/back-button';
@@ -87,21 +88,13 @@ export function ServerForm({ mode, server }: ServerFormProps) {
             </h3>
 
             {/* Server Name */}
-            <div className="grid gap-2">
-              <Label htmlFor="name">
-                Server Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="my-awesome-server"
-                defaultValue={server?.name}
-                required
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                A unique name for your server (lowercase, no spaces)
-              </p>
-            </div>
+            <ServerNameInput
+              id="name"
+              name="name"
+              placeholder="my-awesome-server"
+              defaultValue={server?.name}
+              required
+            />
 
             {/* Description */}
             <div className="grid gap-2">

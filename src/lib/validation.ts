@@ -151,6 +151,42 @@ export function toUpperSnakeCase(str: string): string {
 }
 
 /**
+ * Convert string to kebab-case FOR LIVE TYPING (preserves trailing hyphens)
+ * Use this while user is typing to allow natural hyphen input
+ */
+export function toLiveKebabCase(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/\s+/g, '-')          // Convert spaces to hyphens
+    .replace(/[^a-z0-9-]/g, '')    // Remove invalid chars (keep hyphens)
+    .replace(/-{2,}/g, '-');        // Collapse consecutive hyphens
+  // NOTE: Does NOT remove leading/trailing hyphens (allow during typing)
+}
+
+/**
+ * Convert string to snake_case FOR LIVE TYPING (preserves trailing underscores)
+ * Use this while user is typing to allow natural underscore input
+ */
+export function toLiveSnakeCase(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/\s+/g, '_')          // Convert spaces to underscores
+    .replace(/[^a-z0-9_]/g, '')    // Remove invalid chars (keep underscores)
+    .replace(/_{2,}/g, '_');        // Collapse consecutive underscores
+  // NOTE: Does NOT remove leading/trailing underscores (allow during typing)
+}
+
+/**
+ * Convert string to camelCase FOR LIVE TYPING (more lenient)
+ */
+export function toLiveCamelCase(str: string): string {
+  // Allow typing naturally, only remove truly invalid characters
+  return str
+    .replace(/[^a-zA-Z0-9]/g, '')  // Remove non-alphanumeric
+    .replace(/^[A-Z]/, char => char.toLowerCase()); // Lowercase first char
+}
+
+/**
  * Validate and suggest correction for server name
  */
 export function validateServerName(name: string): { valid: boolean; error?: string; suggestion?: string } {
@@ -312,6 +348,9 @@ export const converters = {
   toSnakeCase,
   toCamelCase,
   toUpperSnakeCase,
+  toLiveKebabCase,
+  toLiveSnakeCase,
+  toLiveCamelCase,
 };
 
 export const helpers = {

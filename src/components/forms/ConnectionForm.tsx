@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ConnectionNameInput } from '@/components/ui/connection-name-input';
 import { createConnection, updateConnection, testConnection } from '@/app/servers/[id]/connections/actions';
 import { BackButton } from '@/components/ui/back-button';
 
@@ -136,18 +137,13 @@ export function ConnectionForm({ mode, serverId, connection }: ConnectionFormPro
           )}
 
           {/* Connection Name */}
-          <div className="grid gap-2">
-            <Label htmlFor="name">
-              Connection Name <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="name"
-              name="name"
-              placeholder="my-postgres-db"
-              defaultValue={connection?.name}
-              required
-            />
-          </div>
+          <ConnectionNameInput
+            id="name"
+            name="name"
+            placeholder="my-postgres-db"
+            defaultValue={connection?.name}
+            required
+          />
 
           {/* Connection Type */}
           <div className="grid gap-2">

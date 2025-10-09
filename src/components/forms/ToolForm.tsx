@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ToolNameInput } from '@/components/ui/tool-name-input';
+import { ParameterNameInput } from '@/components/ui/parameter-name-input';
 import { createTool, updateTool, updateToolSchema, deleteToolSchema } from '@/app/servers/[id]/tools/actions';
 import { BackButton } from '@/components/ui/back-button';
 import { TestToolDialog } from '@/components/dialogs/TestToolDialog';
@@ -178,20 +180,14 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
 
           <div className="flex gap-4">
             {/* Tool Name */}
-            <div className="flex-grow grid gap-2">
-              <Label htmlFor="name">
-                Tool Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
+            <div className="flex-grow">
+              <ToolNameInput
                 id="name"
                 name="name"
                 placeholder="query_users"
                 defaultValue={tool?.name}
                 required
               />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                A unique name for this tool (lowercase, underscores allowed)
-              </p>
             </div>
 
             {/* Tool Type */}
@@ -289,17 +285,21 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                 {parameters.map((param, index) => (
                   <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
                     <div className="flex items-start gap-2">
-                      <div className="flex-1 grid grid-cols-2 gap-2">
+                      <div className="flex gap-2">
                         <div>
-                          <Label className="text-xs">Name</Label>
-                          <Input
+                          <ParameterNameInput
                             placeholder="param_name"
-                            value={param.name}
+                            defaultValue={param.name}
                             onChange={(e) => updateParameter(index, 'name', e.target.value)}
                             className="h-8 text-sm"
+                            suggestedStyle={toolType === 'sql' ? 'snake_case' : 'camelCase'}
+                            allowStylePicker={true}
+                            label=""
+                            helperText=""
+                            showValidation={false}
                           />
                         </div>
-                        <div>
+                        <div className='w-[100]'>
                           <Label className="text-xs">Type</Label>
                           <select
                             value={param.type}

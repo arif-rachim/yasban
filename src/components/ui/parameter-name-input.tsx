@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Input } from './input';
 import { Label } from './label';
-import { validateParameterName, toSnakeCase, toCamelCase, parameterMatchesStyle } from '@/lib/validation';
+import { validateParameterName, toSnakeCase, toCamelCase, toLiveSnakeCase, toLiveCamelCase, parameterMatchesStyle } from '@/lib/validation';
 
 export interface ParameterNameInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type'> {
   label?: string;
@@ -25,9 +25,12 @@ const ParameterNameInput = React.forwardRef<HTMLInputElement, ParameterNameInput
     suggestedStyle = 'camelCase',
     allowStylePicker = true,
     className = '',
+    defaultValue,
+    onChange,
+    onBlur,
     ...props
   }, ref) => {
-    const [value, setValue] = React.useState(props.defaultValue?.toString() || '');
+    const [value, setValue] = React.useState(defaultValue?.toString() || '');
     const [touched, setTouched] = React.useState(false);
     const [validationError, setValidationError] = React.useState<string | null>(null);
     const [isValid, setIsValid] = React.useState(false);
@@ -36,12 +39,12 @@ const ParameterNameInput = React.forwardRef<HTMLInputElement, ParameterNameInput
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let inputValue = e.target.value;
 
-      // Auto-convert based on selected style
+      // Use LIVE conversion based on selected style (allows natural typing)
       if (inputValue) {
         if (selectedStyle === 'snake_case') {
-          inputValue = toSnakeCase(inputValue);
+          inputValue = toLiveSnakeCase(inputValue);
         } else {
-          inputValue = toCamelCase(inputValue);
+          inputValue = toLiveCamelCase(inputValue);
         }
       }
 
@@ -72,14 +75,51 @@ const ParameterNameInput = React.forwardRef<HTMLInputElement, ParameterNameInput
         }
       }
 
-      // Update the actual input value
+      // Update the actual input value and call parent onChange if provided
       e.target.value = inputValue;
+      if (onChange) {
+        onChange(e);
+      }
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      // Final cleanup: remove leading/trailing underscores/invalid chars
+      const cleanedValue = selectedStyle === 'snake_case' ? toSnakeCase(value) : toLiveCamelCase(value);
+      if (cleanedValue !== value) {
+        setValue(cleanedValue);
+        e.target.value = cleanedValue;
+
+        // Re-validate with cleaned value
+        if (cleanedValue) {
+          const validation = validateParameterName(cleanedValue);
+          const matchesStyle = parameterMatchesStyle(cleanedValue, selectedStyle);
+          setIsValid(validation.valid && matchesStyle);
+
+          if (!validation.valid) {
+            setValidationError(validation.error || null);
+          } else if (!matchesStyle) {
+            setValidationError(`Parameter should be in ${selectedStyle}`);
+          } else {
+            setValidationError(null);
+          }
+
+          if (onValidationChange) {
+            onValidationChange(validation.valid && matchesStyle);
+          }
+        }
+
+        // Notify parent of cleaned value
+        if (onChange) {
+          const syntheticEvent = {
+            target: { value: cleanedValue }
+          } as React.ChangeEvent<HTMLInputElement>;
+          onChange(syntheticEvent);
+        }
+      }
+
       setTouched(true);
-      if (props.onBlur) {
-        props.onBlur(e);
+      if (onBlur) {
+        onBlur(e);
       }
     };
 
@@ -87,8 +127,16 @@ const ParameterNameInput = React.forwardRef<HTMLInputElement, ParameterNameInput
       setSelectedStyle(style);
       // Re-convert current value to new style
       if (value) {
-        const newValue = style === 'snake_case' ? toSnakeCase(value) : toCamelCase(value);
+        const newValue = style === 'snake_case' ? toSnakeCase(value) : toLiveCamelCase(value);
         setValue(newValue);
+
+        // Notify parent of the change
+        if (onChange) {
+          const syntheticEvent = {
+            target: { value: newValue }
+          } as React.ChangeEvent<HTMLInputElement>;
+          onChange(syntheticEvent);
+        }
       }
     };
 

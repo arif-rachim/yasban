@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Input } from './input';
 import { Label } from './label';
-import { validateToolName, toSnakeCase } from '@/lib/validation';
+import { validateToolName, toSnakeCase, toLiveSnakeCase } from '@/lib/validation';
 
 export interface ToolNameInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type'> {
   label?: string;
@@ -31,9 +31,9 @@ const ToolNameInput = React.forwardRef<HTMLInputElement, ToolNameInputProps>(
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let inputValue = e.target.value;
 
-      // Auto-convert to snake_case as user types
+      // Use LIVE conversion (allows typing underscores naturally, converts spaces to underscores)
       if (inputValue) {
-        inputValue = toSnakeCase(inputValue);
+        inputValue = toLiveSnakeCase(inputValue);
       }
 
       setValue(inputValue);
@@ -60,6 +60,24 @@ const ToolNameInput = React.forwardRef<HTMLInputElement, ToolNameInputProps>(
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      // Final cleanup: remove leading/trailing underscores
+      const cleanedValue = toSnakeCase(value);
+      if (cleanedValue !== value) {
+        setValue(cleanedValue);
+        e.target.value = cleanedValue;
+
+        // Re-validate with cleaned value
+        if (cleanedValue) {
+          const validation = validateToolName(cleanedValue);
+          setIsValid(validation.valid);
+          setValidationError(validation.valid ? null : validation.error || null);
+
+          if (onValidationChange) {
+            onValidationChange(validation.valid);
+          }
+        }
+      }
+
       setTouched(true);
       if (props.onBlur) {
         props.onBlur(e);

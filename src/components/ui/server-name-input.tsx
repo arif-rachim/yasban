@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Input } from './input';
 import { Label } from './label';
-import { validateServerName, toKebabCase } from '@/lib/validation';
+import { validateServerName, toKebabCase, toLiveKebabCase } from '@/lib/validation';
 
 export interface ServerNameInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type'> {
   label?: string;
@@ -31,9 +31,9 @@ const ServerNameInput = React.forwardRef<HTMLInputElement, ServerNameInputProps>
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let inputValue = e.target.value;
 
-      // Auto-convert to kebab-case as user types
+      // Use LIVE conversion (allows typing hyphens naturally, converts spaces to hyphens)
       if (inputValue) {
-        inputValue = toKebabCase(inputValue);
+        inputValue = toLiveKebabCase(inputValue);
       }
 
       setValue(inputValue);
@@ -60,6 +60,24 @@ const ServerNameInput = React.forwardRef<HTMLInputElement, ServerNameInputProps>
     };
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      // Final cleanup: remove leading/trailing hyphens
+      const cleanedValue = toKebabCase(value);
+      if (cleanedValue !== value) {
+        setValue(cleanedValue);
+        e.target.value = cleanedValue;
+
+        // Re-validate with cleaned value
+        if (cleanedValue) {
+          const validation = validateServerName(cleanedValue);
+          setIsValid(validation.valid);
+          setValidationError(validation.valid ? null : validation.error || null);
+
+          if (onValidationChange) {
+            onValidationChange(validation.valid);
+          }
+        }
+      }
+
       setTouched(true);
       if (props.onBlur) {
         props.onBlur(e);
