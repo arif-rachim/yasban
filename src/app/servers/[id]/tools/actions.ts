@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
+import { autoCreateSnapshot } from '../versions/actions';
 
 /**
  * Server Actions for Tool Management
@@ -77,6 +78,9 @@ export async function createTool(formData: FormData) {
     }
 
     revalidatePath(`/servers/${serverId}/tools`);
+
+    // Create auto-snapshot
+    await autoCreateSnapshot(serverId, 'Tool created', name);
 
     return { success: true, data: tool };
   } catch (error: any) {
@@ -165,6 +169,8 @@ export async function updateTool(formData: FormData) {
 
     if (t) {
       revalidatePath(`/servers/${t.serverId}/tools`);
+      // Create auto-snapshot
+      await autoCreateSnapshot(t.serverId, 'Tool updated', name);
     }
 
     return { success: true, data: tool };
@@ -178,16 +184,21 @@ export async function deleteTool(toolId: string) {
   try {
     const tool = await prisma.tool.findUnique({
       where: { id: toolId },
-      select: { serverId: true },
+      select: { serverId: true, name: true },
     });
+
+    if (!tool) {
+      return { success: false, error: 'Tool not found' };
+    }
 
     await prisma.tool.delete({
       where: { id: toolId },
     });
 
-    if (tool) {
-      revalidatePath(`/servers/${tool.serverId}/tools`);
-    }
+    revalidatePath(`/servers/${tool.serverId}/tools`);
+
+    // Create auto-snapshot
+    await autoCreateSnapshot(tool.serverId, 'Tool deleted', tool.name);
 
     return { success: true, message: 'Tool deleted successfully' };
   } catch (error: any) {

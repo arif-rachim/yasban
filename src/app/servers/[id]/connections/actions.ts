@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
+import { autoCreateSnapshot } from '../versions/actions';
 
 /**
  * Server Actions for Connection Management
@@ -57,6 +58,9 @@ export async function createConnection(formData: FormData) {
     });
 
     revalidatePath(`/servers/${serverId}/connections`);
+
+    // Create auto-snapshot
+    await autoCreateSnapshot(serverId, 'Connection created', name);
 
     return { success: true, data: connection };
   } catch (error: any) {
@@ -137,6 +141,8 @@ export async function updateConnection(formData: FormData) {
 
     if (conn) {
       revalidatePath(`/servers/${conn.serverId}/connections`);
+      // Create auto-snapshot
+      await autoCreateSnapshot(conn.serverId, 'Connection updated', name);
     }
 
     return { success: true, data: connection };
@@ -150,16 +156,21 @@ export async function deleteConnection(connectionId: string) {
   try {
     const conn = await prisma.connection.findUnique({
       where: { id: connectionId },
-      select: { serverId: true },
+      select: { serverId: true, name: true },
     });
+
+    if (!conn) {
+      return { success: false, error: 'Connection not found' };
+    }
 
     await prisma.connection.delete({
       where: { id: connectionId },
     });
 
-    if (conn) {
-      revalidatePath(`/servers/${conn.serverId}/connections`);
-    }
+    revalidatePath(`/servers/${conn.serverId}/connections`);
+
+    // Create auto-snapshot
+    await autoCreateSnapshot(conn.serverId, 'Connection deleted', conn.name);
 
     return { success: true, message: 'Connection deleted successfully' };
   } catch (error: any) {

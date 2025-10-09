@@ -1,15 +1,53 @@
-export default function VersionsPage() {
+import { notFound } from 'next/navigation';
+import prisma from '@/lib/prisma';
+import { VersionsList } from './VersionsList';
+
+interface VersionsPageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
+export default async function VersionsPage({ params }: VersionsPageProps) {
+  const { id: serverId } = await params;
+
+  // Fetch server
+  const server = await prisma.server.findUnique({
+    where: { id: serverId },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+
+  if (!server) {
+    notFound();
+  }
+
+  // Fetch versions
+  const versions = await prisma.version.findMany({
+    where: { serverId },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      versionNumber: true,
+      description: true,
+      createdBy: true,
+      createdAt: true,
+      configSnapshot: true,
+    },
+  });
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12 text-center">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-        Version Management
-      </h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Version control and deployment history will be available here.
-      </p>
-      <div className="inline-block px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded text-sm text-gray-700 dark:text-gray-300">
-        Coming Soon
+    <div>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Version History</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          View and rollback to previous server configurations
+        </p>
       </div>
+
+      <VersionsList serverId={server.id} versions={versions} />
     </div>
   );
 }
