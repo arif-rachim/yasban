@@ -6,7 +6,7 @@ import { TemplateCard } from './TemplateCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
-import { incrementTemplateDownloads } from './actions';
+import { incrementTemplateDownloads, createServerFromTemplate } from './actions';
 
 interface Template {
   id: string;
@@ -48,36 +48,30 @@ export function TemplateGrid({ templates }: TemplateGridProps) {
 
   const handleUseTemplate = async (template: Template) => {
     try {
-      // Increment download count
-      await incrementTemplateDownloads(template.id);
+      // Create server and tool from template
+      const result = await createServerFromTemplate(template.id);
 
-      // Store template in sessionStorage for future use
-      sessionStorage.setItem('selectedTemplate', JSON.stringify(template));
+      if (result.success && result.serverId) {
+        toast({
+          variant: 'success',
+          title: 'Server Created',
+          description: result.message || 'Server created successfully from template',
+        });
 
-      // TODO: Navigate to wizard once wizards are implemented
-      // For now, show a friendly message
-      toast({
-        title: 'Template Selected',
-        description: `"${template.name}" template saved! Wizards are coming soon.`,
-      });
-
-      /* Future implementation when wizards are ready:
-      const wizardRoutes: Record<string, string> = {
-        sql: '/wizard/sql',
-        rest: '/wizard/rest',
-        webhook: '/wizard/webhook',
-        javascript: '/wizard/javascript',
-      };
-      const route = wizardRoutes[template.category];
-      if (route) {
-        router.push(route);
+        // Navigate to new server's tools page
+        router.push(`/servers/${result.serverId}/tools`);
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Error',
+          description: result.error || 'Failed to create server from template',
+        });
       }
-      */
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'error',
         title: 'Error',
-        description: 'Failed to use template',
+        description: error.message || 'Failed to use template',
       });
     }
   };

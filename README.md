@@ -215,6 +215,16 @@ See [docs/REFERENCE.md](./docs/REFERENCE.md) for complete tech stack.
 
 ## 📚 Documentation
 
+### **Developer Documentation**
+
+- 📄 🔥 [**CURRENT_SESSION_STATUS.md**](./docs/CURRENT_SESSION_STATUS.md) - **Current progress & next priorities**
+- 📄 [**CLAUDE.md**](./docs/CLAUDE.md) - Instructions for Claude Code sessions
+- 📄 [**REFERENCE.md**](./docs/REFERENCE.md) - Quick technical reference
+- 📄 [**ROADMAP.md**](./docs/ROADMAP.md) - Timeline and feature roadmap
+- 📄 [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md) - System architecture
+- 📄 [**DEVELOPMENT.md**](./docs/DEVELOPMENT.md) - Development workflow
+- 📄 [**DECISIONS.md**](./docs/DECISIONS.md) - Architecture Decision Records
+
 ### **User Documentation**
 
 - 📖 **Getting Started** - *(coming soon)*
@@ -222,15 +232,6 @@ See [docs/REFERENCE.md](./docs/REFERENCE.md) for complete tech stack.
 - 📖 **REST API Tutorial** - *(coming soon)*
 - 📖 **Service Installation Guide** - *(coming soon)*
 - 📖 **Version Control Guide** - *(coming soon)*
-
-### **Developer Documentation**
-
-- 📄 [**CLAUDE.md**](./docs/CLAUDE.md) - Instructions for Claude Code sessions
-- 📄 [**REFERENCE.md**](./docs/REFERENCE.md) - Quick technical reference
-- 📄 [**ROADMAP.md**](./docs/ROADMAP.md) - Timeline and feature roadmap
-- 📄 [**ARCHITECTURE.md**](./docs/ARCHITECTURE.md) - System architecture
-- 📄 [**DEVELOPMENT.md**](./docs/DEVELOPMENT.md) - Development workflow
-- 📄 [**DECISIONS.md**](./docs/DECISIONS.md) - Architecture Decision Records
 
 ---
 

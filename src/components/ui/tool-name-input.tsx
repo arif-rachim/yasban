@@ -21,9 +21,10 @@ const ToolNameInput = React.forwardRef<HTMLInputElement, ToolNameInputProps>(
     showValidation = true,
     onValidationChange,
     className = '',
+    defaultValue,
     ...props
   }, ref) => {
-    const [value, setValue] = React.useState(props.defaultValue?.toString() || '');
+    const [value, setValue] = React.useState(defaultValue?.toString() || '');
     const [touched, setTouched] = React.useState(false);
     const [validationError, setValidationError] = React.useState<string | null>(null);
     const [isValid, setIsValid] = React.useState(false);
