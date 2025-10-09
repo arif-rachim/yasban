@@ -23,18 +23,18 @@ export default async function ServerLayout({ children, params }: ServerLayoutPro
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-auto" >
       {/* Sidebar */}
       <ServerSidebar serverId={serverId} />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex flex-col flex-1 h-screen">
         {/* Header */}
         <ServerHeader server={server} />
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto p-6">
-          <div className="max-w-7xl mx-auto">{children}</div>
+        <div className="flex flex-col overflow-auto p-4">
+          {children}
         </div>
       </main>
     </div>

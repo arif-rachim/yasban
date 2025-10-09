@@ -5,7 +5,7 @@ import { Input } from './input';
 import { Label } from './label';
 import { validateParameterName, toSnakeCase, toCamelCase, toLiveSnakeCase, toLiveCamelCase, parameterMatchesStyle } from '@/lib/validation';
 
-export interface ParameterNameInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type'> {
+export interface ParameterNameInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type'> {
   label?: string;
   helperText?: string;
   error?: string;

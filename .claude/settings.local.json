@@ -17,7 +17,8 @@
       "Bash(Remove-Item -Recurse -Force \"C:\\Users\\arif\\WebstormProjects\\yasban\\src\\app\\api\\servers\")",
       "Bash(test:*)",
       "Bash(npx prisma db execute:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

@@ -11,7 +11,6 @@ import { ToolNameInput } from '@/components/ui/tool-name-input';
 import { ParameterNameInput } from '@/components/ui/parameter-name-input';
 import { createTool, updateTool, updateToolSchema, deleteToolSchema } from '@/app/servers/[id]/tools/actions';
 import { BackButton } from '@/components/ui/back-button';
-import { TestToolDialog } from '@/components/dialogs/TestToolDialog';
 import { SchemaEditor } from '@/components/forms/SchemaEditor';
 
 interface Tool {
@@ -73,8 +72,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
     description: string;
     required: boolean;
   }>>([]);
-  const [testDialogOpen, setTestDialogOpen] = useState(false);
-  const [resultSchema, setResultSchema] = useState<Record<string, { type: string; description?: string }>>({});
+  const [resultSchema, setResultSchema] = useState<Record<string, { type: string; description?: string; required?: boolean }>>({});
   const [savingSchema, setSavingSchema] = useState(false);
   const [deletingSchema, setDeletingSchema] = useState(false);
 
@@ -290,7 +288,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                           <ParameterNameInput
                             placeholder="param_name"
                             defaultValue={param.name}
-                            onChange={(e) => updateParameter(index, 'name', e.target.value)}
+                            name={`parameters[${index}][name]`}
                             className="h-8 text-sm"
                             suggestedStyle={toolType === 'sql' ? 'snake_case' : 'camelCase'}
                             allowStylePicker={true}
@@ -549,7 +547,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setTestDialogOpen(true)}
+                onClick={() => router.push(`/servers/${serverId}/tools/${tool.id}/test`)}
               >
                 Test Tool
               </Button>
@@ -576,24 +574,6 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
           </div>
         </form>
       </div>
-
-      {/* Test Tool Dialog */}
-      {mode === 'edit' && tool && (
-        <TestToolDialog
-          open={testDialogOpen}
-          onOpenChange={setTestDialogOpen}
-          tool={{
-            id: tool.id,
-            name: tool.name,
-            description: tool.description ?? undefined,
-            type: tool.type,
-            parameters: tool.parameters?.map(p => ({
-              ...p,
-              description: p.description ?? undefined
-            })),
-          }}
-        />
-      )}
     </div>
   );
 }

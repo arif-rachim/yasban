@@ -65,9 +65,9 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Table */}
-      <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="rounded-md border border-gray-200 dark:border-gray-700">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full border-separate border-spacing-0" style={{ minWidth: '100%', tableLayout: 'auto' }}>
             <thead className="bg-gray-50 dark:bg-gray-800">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>

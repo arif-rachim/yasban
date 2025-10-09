@@ -1,11 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
-import { TestToolDialog } from '@/components/dialogs/TestToolDialog';
 import { deleteTool } from './actions';
 
 interface Tool {
@@ -25,13 +23,6 @@ interface ToolsTableProps {
 
 export function ToolsTable({ serverId, initialTools }: ToolsTableProps) {
   const router = useRouter();
-  const [testToolDialogOpen, setTestToolDialogOpen] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
-
-  const handleTestTool = (tool: Tool) => {
-    setSelectedTool(tool);
-    setTestToolDialogOpen(true);
-  };
 
   const handleDeleteTool = async (toolId: string, toolName: string) => {
     if (!confirm(`Are you sure you want to delete tool "${toolName}"?`)) {
@@ -98,7 +89,11 @@ export function ToolsTable({ serverId, initialTools }: ToolsTableProps) {
             >
               Edit
             </Button>
-            <Button variant="outline" size="sm" onClick={() => handleTestTool(tool)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/servers/${serverId}/tools/${tool.id}/test`)}
+            >
               Test
             </Button>
             <Button
@@ -140,13 +135,6 @@ export function ToolsTable({ serverId, initialTools }: ToolsTableProps) {
       ) : (
         <DataTable columns={columns} data={initialTools} searchPlaceholder="Search tools..." />
       )}
-
-      {/* Test Tool Dialog */}
-      <TestToolDialog
-        open={testToolDialogOpen}
-        onOpenChange={setTestToolDialogOpen}
-        tool={selectedTool}
-      />
     </div>
   );
 }
