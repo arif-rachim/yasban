@@ -2,10 +2,33 @@ import { Tool } from '@prisma/client';
 import { ToolExecutionResult } from '@/app/servers/[id]/tools/[toolId]/test/actions';
 import { createServerLogger } from '@/lib/logger';
 import { parseToolConfig, WebhookToolConfig } from '@/types/tool-config';
+import * as os from 'os';
 // import { replaceInString } from '@/lib/parameter-substitution'; // Available if needed in future
 
 interface ToolWithServerId extends Omit<Tool, 'serverId'> {
   serverId: string;
+}
+
+/**
+ * Get the primary network IP address of this machine
+ * Skips localhost, internal, and virtual adapters
+ */
+function getNetworkIP(): string | null {
+  const interfaces = os.networkInterfaces();
+
+  for (const name of Object.keys(interfaces)) {
+    const iface = interfaces[name];
+    if (!iface) continue;
+
+    for (const addr of iface) {
+      // Skip internal (localhost) and non-IPv4 addresses
+      if (addr.family === 'IPv4' && !addr.internal) {
+        return addr.address;
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -50,30 +73,42 @@ export async function executeWebhookTool(
     parameters,
   });
 
-  // Generate webhook URL (this will be the actual endpoint when the MCP server is running)
-  const webhookPath = config.path || `/webhook/${tool.id}`;
+  // Get actual Next.js port (from env or default to 3001)
+  const port = process.env.PORT || process.env.NEXT_PUBLIC_PORT || '3001';
 
-  // In a real deployment, this would be the actual server URL
-  // For now, we'll show a placeholder
-  const baseUrl = process.env.WEBHOOK_BASE_URL || 'http://localhost:3000';
-  const webhookUrl = `${baseUrl}${webhookPath}`;
+  // Get network IP address
+  const networkIP = getNetworkIP();
+
+  // Generate webhook URLs
+  const webhookPath = config.path || `/webhook/${tool.id}`;
+  const apiPath = `/api${webhookPath}`; // Add /api prefix for Next.js API routes
+
+  // Build URLs - both localhost and network
+  const localhostUrl = `http://localhost:${port}${apiPath}`;
+  const networkUrl = networkIP ? `http://${networkIP}:${port}${apiPath}` : null;
 
   // Webhook information
   const webhookInfo = {
-    url: webhookUrl,
-    path: webhookPath,
+    url: networkUrl || localhostUrl, // Prefer network URL if available
+    localhostUrl: localhostUrl,
+    networkUrl: networkUrl,
+    path: apiPath,
+    storedPath: webhookPath,
     method: 'POST',
     description: 'Send HTTP requests to this URL from external services',
-    note: 'This webhook will be active when the MCP server is running',
+    note: 'This webhook will be active when the Next.js server is running',
     hasHandler: !!config.handler && config.handler.trim() !== '',
   };
 
   logger.info('✓ Webhook info generated successfully', {
     toolId: tool.id,
     toolName: tool.name,
-    webhookUrl,
+    localhostUrl,
+    networkUrl: networkUrl || 'N/A',
     hasHandler: webhookInfo.hasHandler,
   });
+
+  const primaryUrl = networkUrl || localhostUrl;
 
   return {
     success: true,
@@ -81,11 +116,13 @@ export async function executeWebhookTool(
       type: 'webhook',
       info: webhookInfo,
       handler: config.handler || '// No handler configured',
-      message: 'Webhook is ready to receive data. Copy the URL above to use in external services.',
+      message: networkUrl
+        ? `Webhook is ready to receive data. Network URL: ${networkUrl} | Localhost: ${localhostUrl}`
+        : `Webhook is ready to receive data. URL: ${localhostUrl}`,
       handlerNote: webhookInfo.hasHandler
         ? 'The handler code above will be executed when this webhook receives data. It has access to params.body, params.headers, params.query, and path parameters.'
         : 'No handler configured. This webhook will only acknowledge receipt of data.',
-      curlExample: `curl -X ${webhookInfo.method} "${webhookUrl}" \\
+      curlExample: `curl -X ${webhookInfo.method} "${primaryUrl}" \\
   -H "Content-Type: application/json" \\
   -d '${JSON.stringify(parameters, null, 2)}'`,
     },

@@ -16,6 +16,41 @@ import {
  * Server Actions for Tool Management
  */
 
+/**
+ * Normalize webhook path to ensure consistent format
+ * - Ensures path starts with /
+ * - Detects /webhook/ prefix (case-insensitive) and strips it
+ * - Prepends normalized /webhook/ prefix
+ * - Preserves case sensitivity of the actual path
+ *
+ * Examples:
+ * - "sedap" → "/webhook/sedap"
+ * - "/Sedap" → "/webhook/Sedap"
+ * - "webhook/payment" → "/webhook/payment"
+ * - "/Webhook/Test" → "/webhook/Test"
+ * - "/WEBHOOK/payment/:id" → "/webhook/payment/:id"
+ */
+function normalizeWebhookPath(userInput: string): string {
+  let path = userInput.trim();
+
+  // Ensure path starts with /
+  if (!path.startsWith('/')) {
+    path = '/' + path;
+  }
+
+  // Check if starts with /webhook/ (case-insensitive)
+  if (path.toLowerCase().startsWith('/webhook/')) {
+    // Strip the prefix (any case) - 9 characters
+    path = path.substring(9);
+  } else if (path.startsWith('/')) {
+    // User typed /something (no webhook prefix)
+    path = path.substring(1); // Remove leading slash
+  }
+
+  // Always prepend normalized /webhook/
+  return `/webhook/${path}`;
+}
+
 export async function createTool(formData: FormData) {
   try {
     const serverId = formData.get('serverId') as string;
@@ -72,7 +107,8 @@ export async function createTool(formData: FormData) {
     } else if (type === 'webhook') {
       const webhookPath = formData.get('webhookPath') as string;
       const webhookHandler = formData.get('webhookHandler') as string;
-      config = createWebhookConfig(webhookPath, webhookHandler);
+      const normalizedPath = normalizeWebhookPath(webhookPath);
+      config = createWebhookConfig(normalizedPath, webhookHandler);
     } else if (type === 'javascript') {
       const jsCode = formData.get('jsCode') as string;
       config = createJavaScriptConfig(jsCode);
@@ -173,7 +209,8 @@ export async function updateTool(formData: FormData) {
     } else if (type === 'webhook') {
       const webhookPath = formData.get('webhookPath') as string;
       const webhookHandler = formData.get('webhookHandler') as string;
-      config = createWebhookConfig(webhookPath, webhookHandler);
+      const normalizedPath = normalizeWebhookPath(webhookPath);
+      config = createWebhookConfig(normalizedPath, webhookHandler);
     } else if (type === 'javascript') {
       const jsCode = formData.get('jsCode') as string;
       config = createJavaScriptConfig(jsCode);

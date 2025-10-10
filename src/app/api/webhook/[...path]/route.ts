@@ -125,7 +125,8 @@ async function executeHandler(
  */
 async function handleWebhook(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const pathSegments = (await context.params).path;
-  const incomingPath = `/api/webhook/${pathSegments.join('/')}`;
+  // Normalize incoming path to match user-configured paths (without /api prefix)
+  const incomingPath = `/webhook/${pathSegments.join('/')}`;
 
   try {
     // Find matching webhook tool

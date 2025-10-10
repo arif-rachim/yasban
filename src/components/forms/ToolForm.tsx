@@ -66,6 +66,14 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
   // Parse existing config if in edit mode
   const existingConfig = tool ? parseToolConfig(tool.type, tool.config) : null;
 
+  // Helper to strip /webhook/ prefix for display in edit mode
+  const stripWebhookPrefix = (path: string): string => {
+    if (path.toLowerCase().startsWith('/webhook/')) {
+      return path.substring(9); // Remove "/webhook/" prefix
+    }
+    return path;
+  };
+
   // Minimal state for conditional rendering and dynamic lists
   const [toolType, setToolType] = useState(tool?.type || 'sql');
   const [restMethod, setRestMethod] = useState(
@@ -467,14 +475,16 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                 <Input
                   id="webhookPath"
                   name="webhookPath"
-                  placeholder="/webhook/tenant/:tenantId/payment"
-                  defaultValue={existingConfig && existingConfig.type === 'webhook' ? existingConfig.path : ''}
+                  placeholder="payment/:paymentId or simply sedap"
+                  defaultValue={existingConfig && existingConfig.type === 'webhook' ? stripWebhookPrefix(existingConfig.path) : ''}
                   required
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  URL path for this webhook. Supports dynamic parameters using :paramName syntax
+                  Path for this webhook. <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">/webhook/</code> prefix is auto-added. Supports dynamic parameters using :paramName
                   <br />
-                  <strong>Examples:</strong> /webhook/stripe-payment, /webhook/user/:userId/action
+                  <strong>Examples:</strong> <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">stripe-payment</code>, <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">user/:userId/action</code>
+                  <br />
+                  <strong>Full URL will be:</strong> <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">/api/webhook/your-path</code>
                 </p>
               </div>
 
