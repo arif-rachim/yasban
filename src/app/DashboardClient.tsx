@@ -140,7 +140,10 @@ export function DashboardClient({ servers }: DashboardClientProps) {
                 Quick Actions
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left">
+                <button
+                  onClick={() => router.push('/wizard/tool?type=sql')}
+                  className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left"
+                >
                   <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                     SQL Tool
                   </div>
@@ -149,7 +152,10 @@ export function DashboardClient({ servers }: DashboardClientProps) {
                   </div>
                 </button>
 
-                <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left">
+                <button
+                  onClick={() => router.push('/wizard/tool?type=rest')}
+                  className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left"
+                >
                   <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                     REST API
                   </div>
@@ -158,12 +164,27 @@ export function DashboardClient({ servers }: DashboardClientProps) {
                   </div>
                 </button>
 
-                <button className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left">
+                <button
+                  onClick={() => router.push('/wizard/tool?type=webhook')}
+                  className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left"
+                >
                   <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
                     Webhook
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">
                     Receive webhook events
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => router.push('/wizard/tool?type=javascript')}
+                  className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 dark:hover:border-primary-400 transition-colors text-left"
+                >
+                  <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                    JavaScript
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Custom JavaScript code
                   </div>
                 </button>
 

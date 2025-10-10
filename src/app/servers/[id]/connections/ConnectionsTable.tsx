@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
+import { useToast } from '@/components/ui/use-toast';
 import { deleteConnection, testConnection } from './actions';
 
 interface Connection {
@@ -22,17 +23,30 @@ interface ConnectionsTableProps {
 
 export function ConnectionsTable({ serverId, initialConnections }: ConnectionsTableProps) {
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleTestConnection = async (connectionId: string) => {
     try {
       const result = await testConnection(connectionId);
       if (result.success) {
-        alert(result.message || 'Connection test successful!');
+        toast({
+          variant: 'success',
+          title: 'Connection Test Successful',
+          description: result.message || 'Connection test successful!',
+        });
       } else {
-        alert(`Connection test failed: ${result.error}`);
+        toast({
+          variant: 'error',
+          title: 'Connection Test Failed',
+          description: result.error || 'Failed to test connection',
+        });
       }
     } catch (err: any) {
-      alert(`Error testing connection: ${err.message}`);
+      toast({
+        variant: 'error',
+        title: 'Error',
+        description: `Error testing connection: ${err.message}`,
+      });
     }
   };
 
@@ -47,10 +61,18 @@ export function ConnectionsTable({ serverId, initialConnections }: ConnectionsTa
         // Page will auto-refresh due to revalidatePath
         window.location.reload();
       } else {
-        alert(`Failed to delete connection: ${result.error}`);
+        toast({
+          variant: 'error',
+          title: 'Failed to Delete Connection',
+          description: result.error || 'An error occurred while deleting the connection',
+        });
       }
     } catch (err: any) {
-      alert(`Error deleting connection: ${err.message}`);
+      toast({
+        variant: 'error',
+        title: 'Error',
+        description: `Error deleting connection: ${err.message}`,
+      });
     }
   };
 

@@ -1,5 +1,12 @@
 import { ServerForm } from '@/components/forms/ServerForm';
 
-export default function NewServerPage() {
-  return <ServerForm mode="create" />;
+interface NewServerPageProps {
+  searchParams: Promise<{
+    returnTo?: string;
+  }>;
+}
+
+export default async function NewServerPage({ searchParams }: NewServerPageProps) {
+  const params = await searchParams;
+  return <ServerForm mode="create" returnTo={params.returnTo} />;
 }

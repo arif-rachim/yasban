@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ConnectionNameInput } from '@/components/ui/connection-name-input';
-import { createConnection, updateConnection, testConnection } from '@/app/servers/[id]/connections/actions';
+import { createConnection, updateConnection, testConnection, testConnectionConfig } from '@/app/servers/[id]/connections/actions';
 import { BackButton } from '@/components/ui/back-button';
 
 interface Connection {
@@ -22,6 +22,7 @@ interface ConnectionFormProps {
   mode: 'create' | 'edit';
   serverId: string;
   connection?: Connection;
+  returnTo?: string;
 }
 
 function SubmitButton({ mode }: { mode: 'create' | 'edit' }) {
@@ -36,7 +37,7 @@ function SubmitButton({ mode }: { mode: 'create' | 'edit' }) {
   );
 }
 
-export function ConnectionForm({ mode, serverId, connection }: ConnectionFormProps) {
+export function ConnectionForm({ mode, serverId, connection, returnTo }: ConnectionFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -54,7 +55,13 @@ export function ConnectionForm({ mode, serverId, connection }: ConnectionFormPro
     const result = await action(formData);
 
     if (result.success) {
-      router.push(`/servers/${serverId}/connections`);
+      // If returnTo is provided, append connectionId and redirect there
+      if (returnTo && result.data?.id) {
+        const separator = returnTo.includes('?') ? '&' : '?';
+        router.push(`${returnTo}${separator}connectionId=${result.data.id}`);
+      } else {
+        router.push(`/servers/${serverId}/connections`);
+      }
       router.refresh();
     }
 
@@ -87,13 +94,27 @@ export function ConnectionForm({ mode, serverId, connection }: ConnectionFormPro
   };
 
   const handleTest = async () => {
-    if (mode !== 'edit' || !connection) return;
-
     setTesting(true);
     setTestResult(null);
 
     try {
-      const result = await testConnection(connection.id);
+      let result;
+
+      if (mode === 'edit' && connection) {
+        // Edit mode: Test saved connection
+        result = await testConnection(connection.id);
+      } else {
+        // Create mode: Test with form data
+        if (!formRef.current) {
+          setTestResult('Error: Form not ready');
+          setTesting(false);
+          return;
+        }
+
+        const formData = new FormData(formRef.current);
+        result = await testConnectionConfig(formData);
+      }
+
       if (result.success) {
         setTestResult(result.message || 'Connection test successful!');
       } else {
@@ -269,19 +290,22 @@ export function ConnectionForm({ mode, serverId, connection }: ConnectionFormPro
             </div>
           )}
 
-          {/* Test Connection Button (Edit Mode Only) */}
-          {mode === 'edit' && (
-            <div className="grid gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleTest}
-                disabled={testing}
-              >
-                {testing ? 'Testing...' : 'Test Connection'}
-              </Button>
-            </div>
-          )}
+          {/* Test Connection Button */}
+          <div className="grid gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTest}
+              disabled={testing}
+            >
+              {testing ? 'Testing...' : 'Test Connection'}
+            </Button>
+            {mode === 'create' && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Test your connection settings before saving
+              </p>
+            )}
+          </div>
 
           {/* Test Result */}
           {testResult && (

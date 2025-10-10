@@ -14,7 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased" style={{ overflow: 'hidden' }}>
+      <body className="antialiased overflow-auto h-screen" >
         {children}
         <Toaster />
       </body>

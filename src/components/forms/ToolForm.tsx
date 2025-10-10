@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ToolNameInput } from '@/components/ui/tool-name-input';
 import { ParameterNameInput } from '@/components/ui/parameter-name-input';
+import { useToast } from '@/components/ui/use-toast';
 import { createTool, updateTool, updateToolSchema, deleteToolSchema } from '@/app/servers/[id]/tools/actions';
 import { BackButton } from '@/components/ui/back-button';
 import { SchemaEditor } from '@/components/forms/SchemaEditor';
@@ -59,6 +60,7 @@ function SubmitButton({ mode }: { mode: 'create' | 'edit' }) {
 export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const { toast } = useToast();
 
   // Parse existing config if in edit mode
   const existingConfig = tool ? JSON.parse(tool.config) : {};
@@ -491,12 +493,24 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                         try {
                           const result = await updateToolSchema(tool.id, resultSchema);
                           if (result.success) {
-                            alert('Schema updated successfully!');
+                            toast({
+                              variant: 'success',
+                              title: 'Schema Updated',
+                              description: 'Schema updated successfully',
+                            });
                           } else {
-                            alert(`Error: ${result.error}`);
+                            toast({
+                              variant: 'error',
+                              title: 'Error',
+                              description: result.error || 'Failed to update schema',
+                            });
                           }
                         } catch (err: any) {
-                          alert(`Error: ${err.message}`);
+                          toast({
+                            variant: 'error',
+                            title: 'Error',
+                            description: err.message,
+                          });
                         } finally {
                           setSavingSchema(false);
                         }
@@ -517,12 +531,24 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                           const result = await deleteToolSchema(tool.id);
                           if (result.success) {
                             setResultSchema({});
-                            alert('Schema deleted successfully!');
+                            toast({
+                              variant: 'success',
+                              title: 'Schema Deleted',
+                              description: 'Schema deleted successfully',
+                            });
                           } else {
-                            alert(`Error: ${result.error}`);
+                            toast({
+                              variant: 'error',
+                              title: 'Error',
+                              description: result.error || 'Failed to delete schema',
+                            });
                           }
                         } catch (err: any) {
-                          alert(`Error: ${err.message}`);
+                          toast({
+                            variant: 'error',
+                            title: 'Error',
+                            description: err.message,
+                          });
                         } finally {
                           setDeletingSchema(false);
                         }

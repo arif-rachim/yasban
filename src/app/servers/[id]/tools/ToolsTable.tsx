@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
+import { useToast } from '@/components/ui/use-toast';
 import { deleteTool } from './actions';
 
 interface Tool {
@@ -23,6 +24,7 @@ interface ToolsTableProps {
 
 export function ToolsTable({ serverId, initialTools }: ToolsTableProps) {
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleDeleteTool = async (toolId: string, toolName: string) => {
     if (!confirm(`Are you sure you want to delete tool "${toolName}"?`)) {
@@ -35,10 +37,18 @@ export function ToolsTable({ serverId, initialTools }: ToolsTableProps) {
         // Page will auto-refresh due to revalidatePath
         window.location.reload();
       } else {
-        alert(`Failed to delete tool: ${result.error}`);
+        toast({
+          variant: 'error',
+          title: 'Failed to Delete Tool',
+          description: result.error || 'An error occurred while deleting the tool',
+        });
       }
     } catch (err: any) {
-      alert(`Error deleting tool: ${err.message}`);
+      toast({
+        variant: 'error',
+        title: 'Error',
+        description: `Error deleting tool: ${err.message}`,
+      });
     }
   };
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { SchemaEditor } from './forms/SchemaEditor';
+import { useToast } from './ui/use-toast';
 import { updateToolSchema } from '@/app/servers/[id]/tools/actions';
 import { DataTable } from './ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
@@ -25,6 +26,7 @@ export function ResultsViewer({ result, toolType, toolId }: ResultsViewerProps) 
   const [viewMode, setViewMode] = useState<'table' | 'json'>('table');
   const [editableSchema, setEditableSchema] = useState(result.schema || {});
   const [savingSchema, setSavingSchema] = useState(false);
+  const { toast } = useToast();
 
   // Copy to clipboard
   const handleCopy = () => {
@@ -52,12 +54,24 @@ export function ResultsViewer({ result, toolType, toolId }: ResultsViewerProps) 
     try {
       const response = await updateToolSchema(toolId, editableSchema);
       if (response.success) {
-        alert('Schema saved successfully!');
+        toast({
+          variant: 'success',
+          title: 'Schema Saved',
+          description: 'Schema saved successfully to the tool',
+        });
       } else {
-        alert(`Error saving schema: ${response.error}`);
+        toast({
+          variant: 'error',
+          title: 'Error Saving Schema',
+          description: response.error || 'Failed to save schema',
+        });
       }
     } catch (error: any) {
-      alert(`Error saving schema: ${error.message}`);
+      toast({
+        variant: 'error',
+        title: 'Error',
+        description: `Error saving schema: ${error.message}`,
+      });
     } finally {
       setSavingSchema(false);
     }

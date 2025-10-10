@@ -23,6 +23,7 @@ interface Server {
 interface ServerFormProps {
   mode: 'create' | 'edit';
   server?: Server;
+  returnTo?: string;
 }
 
 function SubmitButton({ mode }: { mode: 'create' | 'edit' }) {
@@ -37,7 +38,7 @@ function SubmitButton({ mode }: { mode: 'create' | 'edit' }) {
   );
 }
 
-export function ServerForm({ mode, server }: ServerFormProps) {
+export function ServerForm({ mode, server, returnTo }: ServerFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -48,7 +49,13 @@ export function ServerForm({ mode, server }: ServerFormProps) {
 
     if (result.success) {
       if (mode === 'create') {
-        router.push('/');
+        // If returnTo is provided, append serverId and redirect there
+        if (returnTo && result.data?.id) {
+          const separator = returnTo.includes('?') ? '&' : '?';
+          router.push(`${returnTo}${separator}serverId=${result.data.id}`);
+        } else {
+          router.push('/');
+        }
         router.refresh();
       } else {
         // Stay on settings page and show success
