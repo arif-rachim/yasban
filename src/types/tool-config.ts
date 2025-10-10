@@ -30,10 +30,14 @@ export interface RestToolConfig {
 /**
  * Webhook Tool Configuration
  * Used for receiving webhook events
+ *
+ * Path supports dynamic parameters using :paramName syntax
+ * Example: /webhook/tenant/:tenantId/payment
  */
 export interface WebhookToolConfig {
   type: 'webhook';
   path: string;
+  handler: string;  // JavaScript code to execute when webhook receives data
 }
 
 /**
@@ -142,10 +146,11 @@ export function createRestConfig(
 /**
  * Create a Webhook tool configuration
  */
-export function createWebhookConfig(path: string): WebhookToolConfig {
+export function createWebhookConfig(path: string, handler: string = ''): WebhookToolConfig {
   return {
     type: 'webhook',
     path,
+    handler,
   };
 }
 

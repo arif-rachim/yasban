@@ -65,12 +65,14 @@ export async function executeWebhookTool(
     method: 'POST',
     description: 'Send HTTP requests to this URL from external services',
     note: 'This webhook will be active when the MCP server is running',
+    hasHandler: !!config.handler && config.handler.trim() !== '',
   };
 
   logger.info('✓ Webhook info generated successfully', {
     toolId: tool.id,
     toolName: tool.name,
     webhookUrl,
+    hasHandler: webhookInfo.hasHandler,
   });
 
   return {
@@ -78,7 +80,11 @@ export async function executeWebhookTool(
     data: {
       type: 'webhook',
       info: webhookInfo,
+      handler: config.handler || '// No handler configured',
       message: 'Webhook is ready to receive data. Copy the URL above to use in external services.',
+      handlerNote: webhookInfo.hasHandler
+        ? 'The handler code above will be executed when this webhook receives data. It has access to params.body, params.headers, params.query, and path parameters.'
+        : 'No handler configured. This webhook will only acknowledge receipt of data.',
       curlExample: `curl -X ${webhookInfo.method} "${webhookUrl}" \\
   -H "Content-Type: application/json" \\
   -d '${JSON.stringify(parameters, null, 2)}'`,

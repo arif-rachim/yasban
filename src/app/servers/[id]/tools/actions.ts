@@ -71,7 +71,8 @@ export async function createTool(formData: FormData) {
       config = createRestConfig(endpoint, method as any, headers, body);
     } else if (type === 'webhook') {
       const webhookPath = formData.get('webhookPath') as string;
-      config = createWebhookConfig(webhookPath);
+      const webhookHandler = formData.get('webhookHandler') as string;
+      config = createWebhookConfig(webhookPath, webhookHandler);
     } else if (type === 'javascript') {
       const jsCode = formData.get('jsCode') as string;
       config = createJavaScriptConfig(jsCode);
@@ -171,7 +172,8 @@ export async function updateTool(formData: FormData) {
       config = createRestConfig(endpoint, method as any, headers, body);
     } else if (type === 'webhook') {
       const webhookPath = formData.get('webhookPath') as string;
-      config = createWebhookConfig(webhookPath);
+      const webhookHandler = formData.get('webhookHandler') as string;
+      config = createWebhookConfig(webhookPath, webhookHandler);
     } else if (type === 'javascript') {
       const jsCode = formData.get('jsCode') as string;
       config = createJavaScriptConfig(jsCode);

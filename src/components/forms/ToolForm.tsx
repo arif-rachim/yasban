@@ -398,7 +398,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                   id="method"
                   name="method"
                   value={restMethod}
-                  onChange={(e) => setRestMethod(e.target.value)}
+                  onChange={(e) => setRestMethod(e.target.value as RestToolConfig['method'])}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   required
                 >
@@ -459,21 +459,67 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
           )}
 
           {showWebhookFields && (
-            <div className="grid gap-2">
-              <Label htmlFor="webhookPath">
-                Webhook Path <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="webhookPath"
-                name="webhookPath"
-                placeholder="/webhook/my-hook"
-                defaultValue={existingConfig && existingConfig.type === 'webhook' ? existingConfig.path : ''}
-                required
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                The URL path where this webhook will receive events
-              </p>
-            </div>
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="webhookPath">
+                  Webhook Path <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="webhookPath"
+                  name="webhookPath"
+                  placeholder="/webhook/tenant/:tenantId/payment"
+                  defaultValue={existingConfig && existingConfig.type === 'webhook' ? existingConfig.path : ''}
+                  required
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  URL path for this webhook. Supports dynamic parameters using :paramName syntax
+                  <br />
+                  <strong>Examples:</strong> /webhook/stripe-payment, /webhook/user/:userId/action
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="webhookHandler">
+                  Handler Code <span className="text-red-500">*</span>
+                </Label>
+                <Textarea
+                  id="webhookHandler"
+                  name="webhookHandler"
+                  placeholder={`// Access incoming data via params object
+// Path params: params.tenantId, params.userId
+// Payload: params.body
+// Headers: params.headers
+// Query: params.query
+
+const event = params.body;
+const signature = params.headers['x-signature'];
+
+if (!signature) {
+  return { status: 401, error: 'No signature' };
+}
+
+// Process webhook event
+if (event.type === 'payment_success') {
+  return {
+    success: true,
+    message: \`Payment \${event.id} processed\`
+  };
+}
+
+return { success: true };`}
+                  defaultValue={existingConfig && existingConfig.type === 'webhook' ? existingConfig.handler : ''}
+                  rows={16}
+                  className="font-mono text-sm"
+                  required
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  JavaScript code to process webhook data. Access incoming data via{' '}
+                  <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">params</code> object
+                  <br />
+                  <strong>Available:</strong> params.body (payload), params.headers, params.query, params.method, and path parameters
+                </p>
+              </div>
+            </>
           )}
 
           {/* Result Schema Editor (SQL Tools Only, Edit Mode) */}
