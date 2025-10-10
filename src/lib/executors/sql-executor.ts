@@ -6,6 +6,7 @@ import { Tool, Connection, Parameter } from '@prisma/client';
 import { ToolExecutionResult } from '@/app/servers/[id]/tools/[toolId]/test/actions';
 import { createServerLogger } from '@/lib/logger';
 import { replaceInString } from '@/lib/parameter-substitution';
+import { parseToolConfig, SqlToolConfig } from '@/types/tool-config';
 
 const MAX_ROWS = 1000;
 const QUERY_TIMEOUT_MS = 30000;
@@ -561,7 +562,7 @@ export async function executeSQLTool(
   }
 
   // Parse config to get query
-  const config = JSON.parse(tool.config || '{}');
+  const config = parseToolConfig('sql', tool.config) as SqlToolConfig;
   const sql = config.query || '';
   if (!sql) {
     logger.error('SQL tool execution failed - no query', {

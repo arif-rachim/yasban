@@ -3,6 +3,7 @@ import { Tool, Parameter } from '@prisma/client';
 import { ToolExecutionResult } from '@/app/servers/[id]/tools/[toolId]/test/actions';
 import { createServerLogger } from '@/lib/logger';
 import { replaceInString, replaceInObject } from '@/lib/parameter-substitution';
+import { parseToolConfig, RestToolConfig } from '@/types/tool-config';
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -21,16 +22,18 @@ export async function executeRESTTool(
 ): Promise<ToolExecutionResult> {
   const logger = createServerLogger(tool.serverId);
   const startTime = Date.now();
-  const config = tool.config as any;
 
-  if (!config) {
-    logger.error('REST tool execution failed - no configuration', {
+  let config: RestToolConfig;
+  try {
+    config = parseToolConfig('rest', tool.config) as RestToolConfig;
+  } catch (err) {
+    logger.error('REST tool execution failed - invalid configuration', {
       toolId: tool.id,
       toolName: tool.name,
     });
     return {
       success: false,
-      error: 'No REST API configuration found',
+      error: 'Invalid REST API configuration',
     };
   }
 
@@ -95,7 +98,7 @@ export async function executeRESTTool(
     const responseData = {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers,
+      headers: { ...response.headers }, // Convert AxiosHeaders to plain object
       data: response.data,
     };
 
@@ -141,7 +144,7 @@ export async function executeRESTTool(
         data: {
           status: error.response.status,
           statusText: error.response.statusText,
-          headers: error.response.headers,
+          headers: { ...error.response.headers }, // Convert AxiosHeaders to plain object
           data: error.response.data,
         },
         error: `HTTP ${error.response.status}: ${error.response.statusText}`,

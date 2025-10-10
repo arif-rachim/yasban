@@ -13,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased overflow-auto h-screen" >
+    <html lang="en" suppressHydrationWarning className="flex flex-col h-full overflow-auto">
+      <body className="antialiased overflow-auto flex flex-col h-full" >
         {children}
         <Toaster />
       </body>

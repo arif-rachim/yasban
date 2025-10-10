@@ -1,6 +1,7 @@
 import { Tool } from '@prisma/client';
 import { ToolExecutionResult } from '@/app/servers/[id]/tools/[toolId]/test/actions';
 import { createServerLogger } from '@/lib/logger';
+import { parseToolConfig, JavaScriptToolConfig } from '@/types/tool-config';
 
 const EXECUTION_TIMEOUT_MS = 5000;
 
@@ -28,7 +29,20 @@ export async function executeJavaScriptTool(
   const startTime = Date.now();
 
   // Parse config to get code
-  const config = JSON.parse(tool.config || '{}');
+  let config: JavaScriptToolConfig;
+  try {
+    config = parseToolConfig('javascript', tool.config) as JavaScriptToolConfig;
+  } catch (err) {
+    logger.error('JavaScript tool execution failed - invalid configuration', {
+      toolId: tool.id,
+      toolName: tool.name,
+    });
+    return {
+      success: false,
+      error: 'Invalid JavaScript configuration',
+    };
+  }
+
   const code = config.code || '';
 
   if (!code) {

@@ -273,7 +273,7 @@ export function ToolCreationWizard({
                   <p className="text-gray-500 dark:text-gray-400 mb-4">
                     No servers found. Create your first server to continue.
                   </p>
-                  <Button onClick={handleCreateServer}>Create Server</Button>
+                  <Button type="button" onClick={handleCreateServer}>Create Server</Button>
                 </div>
               ) : (
                 <>

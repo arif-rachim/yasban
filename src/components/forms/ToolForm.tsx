@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { createTool, updateTool, updateToolSchema, deleteToolSchema } from '@/app/servers/[id]/tools/actions';
 import { BackButton } from '@/components/ui/back-button';
 import { SchemaEditor } from '@/components/forms/SchemaEditor';
+import { parseToolConfig, RestToolConfig, SqlToolConfig, WebhookToolConfig, JavaScriptToolConfig } from '@/types/tool-config';
 
 interface Tool {
   id: string;
@@ -63,11 +64,13 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
   const { toast } = useToast();
 
   // Parse existing config if in edit mode
-  const existingConfig = tool ? JSON.parse(tool.config) : {};
+  const existingConfig = tool ? parseToolConfig(tool.type, tool.config) : null;
 
   // Minimal state for conditional rendering and dynamic lists
   const [toolType, setToolType] = useState(tool?.type || 'sql');
-  const [restMethod, setRestMethod] = useState(existingConfig.method || 'GET');
+  const [restMethod, setRestMethod] = useState(
+    existingConfig && existingConfig.type === 'rest' ? existingConfig.method : 'GET'
+  );
   const [parameters, setParameters] = useState<Array<{
     name: string;
     type: string;
@@ -227,7 +230,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                     <select
                       id="connectionId"
                       name="connectionId"
-                      defaultValue={existingConfig.connectionId || ''}
+                      defaultValue={existingConfig && existingConfig.type === 'sql' ? existingConfig.connectionId : ''}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       required
                     >
@@ -361,7 +364,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                 id="sqlQuery"
                 name="sqlQuery"
                 placeholder="SELECT * FROM table_name WHERE id = {{user_id}}"
-                defaultValue={existingConfig.query || ''}
+                defaultValue={existingConfig && existingConfig.type === 'sql' ? existingConfig.query : ''}
                 rows={10}
                 className="font-mono text-sm"
                 required
@@ -382,7 +385,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                   id="endpoint"
                   name="endpoint"
                   placeholder="https://api.example.com/users/{{user_id}}"
-                  defaultValue={existingConfig.endpoint || ''}
+                  defaultValue={existingConfig && existingConfig.type === 'rest' ? existingConfig.url : ''}
                   required
                 />
               </div>
@@ -413,7 +416,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                   id="headers"
                   name="headers"
                   placeholder='{"Content-Type": "application/json"}'
-                  defaultValue={existingConfig.headers ? JSON.stringify(existingConfig.headers, null, 2) : '{}'}
+                  defaultValue={existingConfig && existingConfig.type === 'rest' && existingConfig.headers ? JSON.stringify(existingConfig.headers, null, 2) : '{}'}
                   rows={3}
                   className="font-mono text-sm"
                 />
@@ -426,7 +429,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                     id="body"
                     name="body"
                     placeholder='{"key": "{{param_value}}"}'
-                    defaultValue={existingConfig.body ? JSON.stringify(existingConfig.body, null, 2) : '{}'}
+                    defaultValue={existingConfig && existingConfig.type === 'rest' && existingConfig.body ? JSON.stringify(existingConfig.body, null, 2) : '{}'}
                     rows={4}
                     className="font-mono text-sm"
                   />
@@ -444,7 +447,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                 id="jsCode"
                 name="jsCode"
                 placeholder="// Your JavaScript code here&#10;return { result: 'success' };"
-                defaultValue={existingConfig.code || ''}
+                defaultValue={existingConfig && existingConfig.type === 'javascript' ? existingConfig.code : ''}
                 rows={12}
                 className="font-mono text-sm"
                 required
@@ -464,7 +467,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                 id="webhookPath"
                 name="webhookPath"
                 placeholder="/webhook/my-hook"
-                defaultValue={existingConfig.path || ''}
+                defaultValue={existingConfig && existingConfig.type === 'webhook' ? existingConfig.path : ''}
                 required
               />
               <p className="text-xs text-gray-500 dark:text-gray-400">

@@ -1,6 +1,7 @@
 import { Tool } from '@prisma/client';
 import { ToolExecutionResult } from '@/app/servers/[id]/tools/[toolId]/test/actions';
 import { createServerLogger } from '@/lib/logger';
+import { parseToolConfig, WebhookToolConfig } from '@/types/tool-config';
 // import { replaceInString } from '@/lib/parameter-substitution'; // Available if needed in future
 
 interface ToolWithServerId extends Omit<Tool, 'serverId'> {
@@ -28,16 +29,18 @@ export async function executeWebhookTool(
   parameters: Record<string, any>
 ): Promise<ToolExecutionResult> {
   const logger = createServerLogger(tool.serverId);
-  const config = tool.config as any;
 
-  if (!config) {
-    logger.error('Webhook tool execution failed - no configuration', {
+  let config: WebhookToolConfig;
+  try {
+    config = parseToolConfig('webhook', tool.config) as WebhookToolConfig;
+  } catch (err) {
+    logger.error('Webhook tool execution failed - invalid configuration', {
       toolId: tool.id,
       toolName: tool.name,
     });
     return {
       success: false,
-      error: 'No webhook configuration found',
+      error: 'Invalid webhook configuration',
     };
   }
 
@@ -59,10 +62,8 @@ export async function executeWebhookTool(
   const webhookInfo = {
     url: webhookUrl,
     path: webhookPath,
-    method: config.method || 'POST',
+    method: 'POST',
     description: 'Send HTTP requests to this URL from external services',
-    headers: config.headers || {},
-    authentication: config.authentication || 'none',
     note: 'This webhook will be active when the MCP server is running',
   };
 

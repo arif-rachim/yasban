@@ -3,6 +3,14 @@
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { autoCreateSnapshot } from '../versions/actions';
+import {
+  ToolConfig,
+  createSqlConfig,
+  createRestConfig,
+  createWebhookConfig,
+  createJavaScriptConfig,
+  serializeToolConfig,
+} from '@/types/tool-config';
 
 /**
  * Server Actions for Tool Management
@@ -32,24 +40,43 @@ export async function createTool(formData: FormData) {
     }
 
     // Build config based on tool type
-    let config: any = {};
+    let config: ToolConfig;
 
     if (type === 'sql') {
       const connectionId = formData.get('connectionId') as string;
       const sqlQuery = formData.get('sqlQuery') as string;
-      config = { connectionId, query: sqlQuery };
+      config = createSqlConfig(connectionId, sqlQuery);
     } else if (type === 'rest') {
       const endpoint = formData.get('endpoint') as string;
       const method = formData.get('method') as string;
-      const headers = formData.get('headers') as string;
-      const body = formData.get('body') as string;
-      config = { endpoint, method, headers: headers || '{}', body: body || '{}' };
+      const headersStr = formData.get('headers') as string;
+      const bodyStr = formData.get('body') as string;
+
+      // Parse headers and body JSON
+      let headers: Record<string, string> | undefined;
+      let body: any | undefined;
+
+      try {
+        headers = headersStr && headersStr.trim() !== '{}' ? JSON.parse(headersStr) : undefined;
+      } catch (err) {
+        console.error('Failed to parse headers JSON:', err);
+      }
+
+      try {
+        body = bodyStr && bodyStr.trim() !== '{}' ? JSON.parse(bodyStr) : undefined;
+      } catch (err) {
+        console.error('Failed to parse body JSON:', err);
+      }
+
+      config = createRestConfig(endpoint, method as any, headers, body);
     } else if (type === 'webhook') {
       const webhookPath = formData.get('webhookPath') as string;
-      config = { path: webhookPath };
+      config = createWebhookConfig(webhookPath);
     } else if (type === 'javascript') {
       const jsCode = formData.get('jsCode') as string;
-      config = { code: jsCode };
+      config = createJavaScriptConfig(jsCode);
+    } else {
+      throw new Error(`Unknown tool type: ${type}`);
     }
 
     // Create tool with parameters as a relation
@@ -59,7 +86,7 @@ export async function createTool(formData: FormData) {
         name,
         description: description || '',
         type,
-        config: JSON.stringify(config),
+        config: serializeToolConfig(config),
       },
     });
 
@@ -113,24 +140,43 @@ export async function updateTool(formData: FormData) {
     }
 
     // Build config based on tool type
-    let config: any = {};
+    let config: ToolConfig;
 
     if (type === 'sql') {
       const connectionId = formData.get('connectionId') as string;
       const sqlQuery = formData.get('sqlQuery') as string;
-      config = { connectionId, query: sqlQuery };
+      config = createSqlConfig(connectionId, sqlQuery);
     } else if (type === 'rest') {
       const endpoint = formData.get('endpoint') as string;
       const method = formData.get('method') as string;
-      const headers = formData.get('headers') as string;
-      const body = formData.get('body') as string;
-      config = { endpoint, method, headers: headers || '{}', body: body || '{}' };
+      const headersStr = formData.get('headers') as string;
+      const bodyStr = formData.get('body') as string;
+
+      // Parse headers and body JSON
+      let headers: Record<string, string> | undefined;
+      let body: any | undefined;
+
+      try {
+        headers = headersStr && headersStr.trim() !== '{}' ? JSON.parse(headersStr) : undefined;
+      } catch (err) {
+        console.error('Failed to parse headers JSON:', err);
+      }
+
+      try {
+        body = bodyStr && bodyStr.trim() !== '{}' ? JSON.parse(bodyStr) : undefined;
+      } catch (err) {
+        console.error('Failed to parse body JSON:', err);
+      }
+
+      config = createRestConfig(endpoint, method as any, headers, body);
     } else if (type === 'webhook') {
       const webhookPath = formData.get('webhookPath') as string;
-      config = { path: webhookPath };
+      config = createWebhookConfig(webhookPath);
     } else if (type === 'javascript') {
       const jsCode = formData.get('jsCode') as string;
-      config = { code: jsCode };
+      config = createJavaScriptConfig(jsCode);
+    } else {
+      throw new Error(`Unknown tool type: ${type}`);
     }
 
     // Update tool
@@ -139,7 +185,7 @@ export async function updateTool(formData: FormData) {
       data: {
         name,
         description: description || '',
-        config: JSON.stringify(config),
+        config: serializeToolConfig(config),
       },
     });
 

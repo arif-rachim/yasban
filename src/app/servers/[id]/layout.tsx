@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
-import { ServerSidebar } from '@/components/ServerSidebar';
-import { ServerHeader } from '@/components/ServerHeader';
+import { ConditionalServerLayout } from '@/components/ConditionalServerLayout';
 
 interface ServerLayoutProps {
   children: React.ReactNode;
@@ -23,20 +22,8 @@ export default async function ServerLayout({ children, params }: ServerLayoutPro
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-auto" >
-      {/* Sidebar */}
-      <ServerSidebar serverId={serverId} />
-
-      {/* Main Content */}
-      <main className="flex flex-col flex-1 h-screen">
-        {/* Header */}
-        <ServerHeader server={server} />
-
-        {/* Page Content */}
-        <div className="flex flex-col overflow-auto p-4">
-          {children}
-        </div>
-      </main>
-    </div>
+    <ConditionalServerLayout server={server} serverId={serverId}>
+      {children}
+    </ConditionalServerLayout>
   );
 }
