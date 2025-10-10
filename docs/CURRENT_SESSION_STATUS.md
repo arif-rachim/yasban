@@ -4,9 +4,9 @@
 
 This document captures the current state of the Yasban project for easy continuation in the next session.
 
-**Last Updated**: 2025-01-10
+**Last Updated**: 2025-01-10 (Latest session)
 **Current Phase**: Month 1 - Foundation (Week 2-3)
-**Session Focus**: UI Foundation, Server Management, Template System
+**Session Focus**: Tool Execution, Code Refactoring, Parameter Substitution Utility
 
 ---
 
@@ -76,16 +76,71 @@ This document captures the current state of the Yasban project for easy continua
 - [x] Template grid with filtering by category
 - [x] Template search functionality
 - [x] Template detail modal (view configuration)
-- [x] **Template-to-Server creation** (NEW!)
+- [x] **Template-to-Server creation**
   - Click "Use Template" → Instant server + tool creation
   - Navigates to new server's tools page
   - Increments download counter
 - [x] Template actions: `src/app/templates/actions.ts`
   - `getTemplates(category?)`
   - `incrementTemplateDownloads(id)`
-  - `createServerFromTemplate(templateId)` ✅ NEW
+  - `createServerFromTemplate(templateId)`
 
-### 7. **UI Components** ✅
+### 7. **Tool Testing & Execution** ✅ NEW
+- [x] Tool test page (`/servers/[id]/tools/[toolId]/test`)
+- [x] ToolTester component with parameter input forms
+- [x] ResultsViewer component with multiple display modes:
+  - Table view for SQL results
+  - JSON view for REST/Webhook responses
+  - Error display with styling
+  - Schema capture and editing
+  - Copy/Download results functionality
+- [x] Tool executors implemented:
+  - **SQL Executor** (`src/lib/executors/sql-executor.ts`)
+    - PostgreSQL, MySQL, MSSQL, SQLite support
+    - Schema inference from database metadata
+    - Safety limits (max rows, timeout)
+  - **REST Executor** (`src/lib/executors/rest-executor.ts`)
+    - All HTTP methods (GET, POST, PUT, DELETE, PATCH)
+    - Header and body parameter substitution
+    - Nested object/array support
+  - **Webhook Executor** (`src/lib/executors/webhook-executor.ts`)
+    - Webhook info generation
+    - cURL example generation
+  - **JavaScript Executor** (`src/lib/executors/javascript-executor.ts`) ✅ NEW
+    - Function constructor sandbox
+    - 5-second timeout protection
+    - Error handling
+- [x] Test actions: `src/app/servers/[id]/tools/[toolId]/test/actions.ts`
+  - `executeTool(toolId, parameters)`
+
+### 8. **Parameter Substitution Utility** ✅ NEW
+- [x] Shared utility module: `src/lib/parameter-substitution.ts`
+- [x] Supports 3 parameter patterns:
+  - `{{paramName}}` - Double curly braces (Handlebars/Mustache style)
+  - `${paramName}` - Dollar sign with braces (JS template literal style)
+  - `$paramName` - Dollar sign only (PostgreSQL/Shell style)
+- [x] Functions:
+  - `replaceInString()` - Simple string template replacement
+  - `replaceInObject()` - Recursive object/array replacement
+  - `escapeRegExp()` - Safe regex pattern generation
+- [x] Used by SQL and REST executors (eliminates ~80 lines of duplicate code)
+- [x] Comprehensive JSDoc with examples
+
+### 9. **Logs Viewer** ✅
+- [x] Logs page (`/servers/[id]/logs`)
+- [x] LogsViewer component with real-time streaming
+- [x] SSE (Server-Sent Events) endpoint for log streaming
+- [x] Features:
+  - Live log updates
+  - Auto-scroll with manual override
+  - Filter by level (all, error, warn, info, debug)
+  - Search functionality
+  - Download logs as .txt file
+  - Clear logs button
+  - Connection status indicator
+- [x] SSE route: `src/app/api/servers/[id]/logs/stream/route.ts`
+
+### 10. **UI Components** ✅
 - [x] Sidebar navigation (ServerSidebar)
 - [x] ServerHeader with delete button
 - [x] Dashboard with quick stats
@@ -97,7 +152,7 @@ This document captures the current state of the Yasban project for easy continua
 - [x] Button, Input, Dialog components
 - [x] ToolNameInput with live validation
 
-### 8. **Bug Fixes** ✅
+### 11. **Bug Fixes & Code Quality** ✅
 - [x] Fixed better-sqlite3 MODULE_VERSION mismatch
   - Rebuilt for Node.js v20.9.0 (system Node) instead of Electron
   - Test connections now work in Next.js Server Actions
@@ -110,56 +165,45 @@ This document captures the current state of the Yasban project for easy continua
 
 ## 🚧 In Progress / Partially Implemented
 
-### 1. **Logs Viewer**
-- Structure exists (`/servers/[id]/logs`)
-- Not yet implemented (empty page)
-
-### 2. **Settings Page**
+### 1. **Settings Page**
 - Route exists (`/servers/[id]/settings`)
 - Basic structure but not complete
 
-### 3. **Dashboard Quick Actions**
+### 2. **Dashboard Quick Actions**
 - UI buttons exist (SQL Tool, REST API, Webhook)
-- Not wired up yet (should open create tool wizard)
+- Not wired up yet (should open create tool wizard or navigate to create tool page)
 
 ---
 
 ## ❌ Not Yet Implemented
 
-### 1. **Tool Testing/Execution** (HIGH PRIORITY)
-- No tool execution UI
-- No "Run Tool" functionality
-- No results viewer
-- **This is the most critical missing feature**
-
-### 2. **Tool Creation Wizards**
+### 1. **Tool Creation Wizards**
 - No SQL wizard (4 steps)
 - No REST wizard (5 steps)
 - No Webhook wizard (3 steps)
 - Currently users can only create tools via forms or templates
 
-### 3. **MCP Runtime**
+### 2. **MCP Runtime**
 - No `mcp-runtime/` package yet
 - No MCP server bootstrap
 - No tool executors (SQL, REST, Webhook, JS)
 - No hot-reload system
 - No config loader
 
-### 4. **Service Management**
+### 3. **Service Management**
 - No Windows service installation
 - No Linux daemon installation
 - No process manager
 - No health checks
 
-### 5. **Export Functionality**
+### 4. **Export Functionality**
 - No export as mcp.json
 - No export as Node.js project
 - No import server
 
-### 6. **Advanced Features**
-- No JavaScript transformation execution
-- No webhook receivers
-- No result schema support (partially in DB schema)
+### 5. **Advanced Features**
+- No webhook receivers (webhooks are passive - receiving implementation not done)
+- Enhanced result schema editing (basic support exists)
 
 ---
 
@@ -229,7 +273,14 @@ yasban/
 │   │   ├── encryption.ts                 ✅ AES-256-GCM (not used yet)
 │   │   ├── connection-tester.ts          ✅ Test connections
 │   │   ├── validation.ts                 ✅ Tool name validation
-│   │   └── logger.ts                     ✅ Winston logger
+│   │   ├── logger.ts                     ✅ Winston logger
+│   │   ├── parameter-substitution.ts     ✅ Shared utility (NEW)
+│   │   ├── tool-tester.ts                ✅ Legacy testing (deprecated)
+│   │   └── executors/                    ✅ Tool executors (NEW)
+│   │       ├── sql-executor.ts           ✅ SQL execution
+│   │       ├── rest-executor.ts          ✅ REST API execution
+│   │       ├── webhook-executor.ts       ✅ Webhook info generation
+│   │       └── javascript-executor.ts    ✅ JS execution
 │   │
 │   └── types/                            ✅ TypeScript types
 │
@@ -257,24 +308,11 @@ yasban/
 
 ### **HIGH PRIORITY** 🔥
 
-1. **Tool Testing/Execution UI** (Most Critical)
-   - Create tool detail page (`/servers/[id]/tools/[toolId]/test`)
-   - Parameter input form (dynamic based on tool config)
-   - "Run Tool" button
-   - Results viewer (table for SQL, JSON for REST)
-   - Error display
-   - **This makes the app actually functional for end users**
-
-2. **Wire Up Dashboard Quick Actions**
-   - "SQL Tool" button → Create tool wizard or form
-   - "REST API" button → Create tool wizard or form
-   - "Webhook" button → Create tool wizard or form
-   - For MVP, can just navigate to `/servers/[id]/tools/new` with pre-selected type
-
-3. **Logs Viewer Implementation**
-   - Read logs from database
-   - Filter by level (info, warn, error)
-   - Real-time log streaming (optional)
+1. **Wire Up Dashboard Quick Actions**
+   - "SQL Tool" button → Navigate to tool creation with pre-selected type
+   - "REST API" button → Navigate to tool creation with pre-selected type
+   - "Webhook" button → Navigate to tool creation with pre-selected type
+   - Simple navigation improvement for better UX
 
 ### **MEDIUM PRIORITY** 📋
 
@@ -305,39 +343,70 @@ yasban/
 
 ## 🐛 Known Issues
 
-1. **No Tool Execution** - Users can create tools but can't test/run them yet
-2. **Dashboard Quick Actions** - Buttons don't do anything
-3. **Logs Page Empty** - Route exists but not implemented
-4. **Settings Incomplete** - Basic structure, needs full implementation
+1. **Dashboard Quick Actions** - Buttons don't navigate to tool creation
+2. **Settings Incomplete** - Basic structure, needs full implementation
+3. **MCP Runtime Not Started** - No separate MCP server process (in-app execution only)
+4. **Service Installation Not Started** - Can't install as Windows service yet
 
 ---
 
 ## 💡 Technical Decisions This Session
 
-### 1. **Removed Electron Rebuild from postinstall**
+### Previous Sessions
+
+#### 1. **Removed Electron Rebuild from postinstall**
 - **Issue**: better-sqlite3 was being rebuilt for Electron, but test connections run in Next.js Server Actions
 - **Solution**: Rebuild only for system Node.js (v20.9.0)
 - **File**: `package.json` line 37
 
-### 2. **Deleted Duplicate Server Actions**
+#### 2. **Deleted Duplicate Server Actions**
 - **Issue**: Two files with same functionality: `src/app/servers/actions.ts` and `src/app/actions/servers.ts`
 - **Decision**: Keep `src/app/actions/servers.ts` (more complete, has `updateServer`)
 - **Deleted**: `src/app/servers/actions.ts`
 
-### 3. **Template-to-Server Creation Pattern**
+#### 3. **Template-to-Server Creation Pattern**
 - **Decision**: No wizards needed for templates - instant server creation
-- **Flow**:
-  1. Parse template config
-  2. Create server with name "From Template: [TemplateName]"
-  3. Create tool with template config
-  4. Create parameters from template
-  5. Navigate to new server's tools page
+- **Flow**: Parse template → Create server → Create tool → Navigate
 - **Benefits**: Fast, no complex wizard UI, users can customize after creation
 
-### 4. **AlertDialog for Destructive Actions**
+#### 4. **AlertDialog for Destructive Actions**
 - **Decision**: Use Radix UI AlertDialog for confirmations (delete server, rollback)
 - **Benefits**: Accessible, keyboard navigation, prevents accidental deletions
-- **Pattern**: Used in ServerHeader and VersionsList components
+
+### Latest Session (2025-01-10)
+
+#### 5. **Restored JavaScript Tool Execution** ✅ NEW
+- **Issue**: JavaScript executor was not migrated during tool executor refactor
+- **Solution**: Created `src/lib/executors/javascript-executor.ts`
+  - Ported working logic from legacy `tool-tester.ts`
+  - Function constructor sandbox (Phase 1 approach per architecture docs)
+  - 5-second timeout protection
+  - Proper error handling and logging
+- **Integration**: Wired into `test/actions.ts` with other executors
+- **Result**: All 4 tool types (SQL, REST, Webhook, JavaScript) now fully functional
+
+#### 6. **Created Shared Parameter Substitution Utility** ✅ NEW
+- **Problem**: Duplicate parameter replacement code in SQL and REST executors (~80 lines)
+- **Solution**: Created `src/lib/parameter-substitution.ts`
+  - `replaceInString()` - Simple string template replacement
+  - `replaceInObject()` - Recursive object/array replacement
+  - Supports 3 patterns: `{{param}}`, `${param}}`, `$param`
+- **Refactoring**:
+  - SQL Executor: Removed local `replaceParameters()`, now uses `replaceInString()`
+  - REST Executor: Removed 2 local functions, now uses both shared functions
+  - Webhook Executor: Documented for future use
+  - JavaScript Executor: No changes needed (uses `params` object)
+- **Benefits**:
+  - DRY principle - single source of truth
+  - Consistent behavior across all tool types
+  - ~80 lines of duplicate code eliminated
+  - Easier to maintain and test
+  - Comprehensive JSDoc with examples
+
+#### 7. **Documentation Improvements**
+- **Decision**: Added deprecation notice to legacy `tool-tester.ts`
+- **Reason**: File is kept for backward compatibility but new code should use modular executors
+- **Pattern**: Point developers to new implementation in comments
 
 ---
 
@@ -345,20 +414,22 @@ yasban/
 
 | Feature Category | Completion | Notes |
 |------------------|------------|-------|
-| **Infrastructure** | 95% | ✅ Everything set up, minor polish needed |
+| **Infrastructure** | 100% | ✅ Everything set up and working |
 | **Server Management** | 100% | ✅ Full CRUD, delete with cleanup |
-| **Tool Management** | 70% | ✅ CRUD complete, ❌ No execution/testing |
+| **Tool Management** | 100% | ✅ CRUD + execution/testing complete |
 | **Connection Management** | 100% | ✅ Full CRUD, test connection works |
 | **Version Control** | 100% | ✅ Snapshots, rollback, delete all work |
 | **Template System** | 100% | ✅ Browse, search, filter, create from template |
-| **Logs** | 10% | ❌ Just empty page structure |
+| **Tool Execution** | 100% | ✅ All 4 tool types working (SQL, REST, Webhook, JS) |
+| **Logs** | 100% | ✅ Real-time streaming, filtering, search, download |
+| **Code Quality** | 100% | ✅ Shared utilities, DRY principles, TypeScript compilation passing |
 | **Settings** | 30% | 🚧 Basic structure, needs implementation |
-| **MCP Runtime** | 0% | ❌ Not started |
+| **MCP Runtime** | 0% | ❌ Not started (Phase 1 has in-app execution) |
 | **Service Management** | 0% | ❌ Not started |
 | **Export/Import** | 0% | ❌ Not started |
-| **Wizards** | 0% | ❌ Not started |
+| **Wizards** | 0% | ❌ Not started (current forms work fine) |
 
-**Overall Phase 1 Progress**: ~35% complete
+**Overall Phase 1 Progress**: ~65% complete (major milestone reached!)
 
 ---
 
@@ -437,11 +508,13 @@ npm run build
 
 ## 📝 Notes for Next Developer
 
-1. **Tool Execution is TOP Priority** - Without this, users can't actually USE the tools they create
-2. **MCP Runtime is Complex** - Will need careful implementation with hot-reload, config loading, tool executors
+1. **In-App Tool Execution is Complete** ✅ - All 4 tool types work (SQL, REST, Webhook, JavaScript)
+2. **MCP Runtime is Next Big Feature** - Separate process for running MCP servers standalone
 3. **Service Installation is OS-Specific** - Start with Windows (node-windows), then Linux (node-linux)
 4. **Wizards are Nice-to-Have** - Current form-based creation works fine, wizards are UX improvement
-5. **Better-sqlite3 Must Stay on Node v20.9.0** - Don't rebuild for Electron unless tool execution happens in Electron (it doesn't)
+5. **Better-sqlite3 Must Stay on Node v20.9.0** - Don't rebuild for Electron
+6. **Parameter Substitution Utility** - Use `src/lib/parameter-substitution.ts` for any new executors
+7. **Legacy Code** - `tool-tester.ts` is deprecated, use modular executors in `lib/executors/`
 
 ---
 

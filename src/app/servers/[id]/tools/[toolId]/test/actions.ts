@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { executeSQLTool } from '@/lib/executors/sql-executor';
 import { executeRESTTool } from '@/lib/executors/rest-executor';
 import { executeWebhookTool } from '@/lib/executors/webhook-executor';
+import { executeJavaScriptTool } from '@/lib/executors/javascript-executor';
 
 export interface ToolExecutionResult {
   success: boolean;
@@ -71,11 +72,7 @@ export async function executeTool(
 
       case 'JAVASCRIPT':
       case 'JS':
-        // TODO: Implement JavaScript executor
-        result = {
-          success: false,
-          error: 'JavaScript tools are not yet supported',
-        };
+        result = await executeJavaScriptTool(toolWithConnection, parameters);
         break;
 
       default:

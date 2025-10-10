@@ -2,7 +2,7 @@
 
 Quick reference for architecture, tech stack, database schema, and key decisions.
 
-**Last Updated**: 2025-10-08
+**Last Updated**: 2025-01-10
 
 ---
 
@@ -421,11 +421,78 @@ Return Result to Claude ✓
 ```
 
 **Files Involved:**
-- `src/lib/tool-tester.ts` - Tool testing for UI
-- `mcp-runtime/src/tools/sql-executor.ts` - SQL execution
-- `mcp-runtime/src/tools/rest-executor.ts` - REST API calls
-- `mcp-runtime/src/tools/webhook-executor.ts` - Webhook handling
-- `mcp-runtime/src/tools/transform.ts` - JS transformations
+- `src/lib/executors/sql-executor.ts` - SQL execution ✅ ACTIVE
+- `src/lib/executors/rest-executor.ts` - REST API calls ✅ ACTIVE
+- `src/lib/executors/webhook-executor.ts` - Webhook info generation ✅ ACTIVE
+- `src/lib/executors/javascript-executor.ts` - JavaScript execution ✅ ACTIVE
+- `src/lib/tool-tester.ts` - Legacy testing (deprecated, kept for backward compatibility)
+- `mcp-runtime/src/tools/transform.ts` - JS transformations (Phase 2)
+
+### **5. Parameter Substitution Pattern** ✅ NEW
+
+```
+Tool Execution with Parameters
+    ↓
+Parse tool config (SQL query, REST URL, etc.)
+    ↓
+Extract parameter placeholders
+    ├─→ {{paramName}} - Double curly braces (Handlebars/Mustache style)
+    ├─→ ${paramName}  - Dollar sign with braces (JS template literal style)
+    └─→ $paramName    - Dollar sign only (PostgreSQL/Shell style)
+         ↓
+Call replaceInString() or replaceInObject()
+    ├─→ Regex pattern: Matches all 3 placeholder styles
+    ├─→ Escape special regex characters in param names
+    └─→ Convert parameter values to strings
+         ↓
+Return processed template with values substituted
+    ↓
+Execute Tool ✓
+```
+
+**Shared Utility Module:** `src/lib/parameter-substitution.ts`
+
+**Functions:**
+- `replaceInString(template, parameters)` - Replace placeholders in strings
+- `replaceInObject(obj, parameters)` - Recursively replace in objects/arrays
+- `escapeRegExp(str)` - Internal helper for safe regex patterns
+
+**Usage in Executors:**
+- **SQL Executor**: Query string replacement
+- **REST Executor**: URL, headers, and body replacement (nested objects supported)
+- **Webhook Executor**: Reserved for future use (documented)
+- **JavaScript Executor**: Not needed (uses `params` object directly)
+
+**Example:**
+```typescript
+import { replaceInString, replaceInObject } from '@/lib/parameter-substitution';
+
+// Simple string replacement
+const query = 'SELECT * FROM users WHERE id = {{user_id}}';
+const sql = replaceInString(query, { user_id: 123 });
+// Result: 'SELECT * FROM users WHERE id = 123'
+
+// Complex object replacement
+const config = {
+  url: 'https://api.example.com/users/${userId}',
+  headers: { 'Authorization': 'Bearer {{token}}' },
+  body: { name: '{{name}}', age: $age }
+};
+const processed = replaceInObject(config, {
+  userId: 456,
+  token: 'abc123',
+  name: 'John',
+  age: 30
+});
+// Result: All placeholders replaced recursively
+```
+
+**Benefits:**
+- DRY principle - Single source of truth (~80 lines of duplicate code eliminated)
+- Consistent behavior across all tool types
+- Supports 3 parameter patterns simultaneously
+- Type-safe with full TypeScript support
+- Comprehensive JSDoc documentation
 
 ---
 
@@ -768,4 +835,4 @@ publish:
 
 **Maintained By**: Yasban Core Team
 **License**: MIT
-**Last Updated**: 2025-10-08
+**Last Updated**: 2025-01-10

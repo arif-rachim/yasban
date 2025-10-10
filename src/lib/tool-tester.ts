@@ -1,3 +1,22 @@
+/**
+ * @deprecated Legacy tool testing implementation
+ *
+ * This file contains the original all-in-one tool testing implementation.
+ * It is currently only used by the legacy TestToolDialog component.
+ *
+ * **For new code, use the modular executors instead:**
+ * - src/lib/executors/sql-executor.ts
+ * - src/lib/executors/rest-executor.ts
+ * - src/lib/executors/webhook-executor.ts
+ * - src/lib/executors/javascript-executor.ts
+ *
+ * **For tool testing UI:**
+ * - Use: /servers/[id]/tools/[toolId]/test page
+ * - Server Action: src/app/servers/[id]/tools/[toolId]/test/actions.ts
+ *
+ * This file is kept for backward compatibility but may be removed in a future version.
+ */
+
 import { Client as PgClient } from 'pg';
 import mysql from 'mysql2/promise';
 import { Connection as TediousConnection, Request as TediousRequest, TYPES } from 'tedious';

@@ -1,6 +1,7 @@
 import { Tool } from '@prisma/client';
 import { ToolExecutionResult } from '@/app/servers/[id]/tools/[toolId]/test/actions';
 import { createServerLogger } from '@/lib/logger';
+// import { replaceInString } from '@/lib/parameter-substitution'; // Available if needed in future
 
 interface ToolWithServerId extends Omit<Tool, 'serverId'> {
   serverId: string;
@@ -12,6 +13,15 @@ interface ToolWithServerId extends Omit<Tool, 'serverId'> {
  * Note: Webhooks are passive - they receive data rather than send it.
  * This function returns information about the webhook endpoint that can be used
  * to receive data from external services.
+ *
+ * **Parameter Substitution:**
+ * Currently, webhooks do NOT use template parameter substitution since they are
+ * passive receivers. However, parameter substitution could be added in the future for:
+ * - Dynamic webhook paths: `/webhook/{{tool_id}}` → `/webhook/abc-123`
+ * - Custom auth headers: `{"X-Auth-Token": "{{webhook_secret}}"}`
+ * - Webhook verification tokens
+ *
+ * If needed, import and use `replaceInString()` from `@/lib/parameter-substitution`.
  */
 export async function executeWebhookTool(
   tool: ToolWithServerId,

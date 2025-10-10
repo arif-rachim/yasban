@@ -2,6 +2,7 @@ import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { Tool, Parameter } from '@prisma/client';
 import { ToolExecutionResult } from '@/app/servers/[id]/tools/[toolId]/test/actions';
 import { createServerLogger } from '@/lib/logger';
+import { replaceInString, replaceInObject } from '@/lib/parameter-substitution';
 
 const REQUEST_TIMEOUT_MS = 30000;
 
@@ -10,57 +11,6 @@ interface ToolWithParams extends Omit<Tool, 'serverId'> {
   serverId: string;
 }
 
-/**
- * Replace parameter placeholders in a string with actual values
- * Supports: $paramName, ${paramName}, and {{paramName}} syntax
- */
-function replaceParameterPlaceholders(
-  text: string,
-  parameters: Record<string, any>
-): string {
-  let result = text;
-
-  Object.entries(parameters).forEach(([name, value]) => {
-    // Match $paramName, ${paramName}, or {{paramName}}
-    const patterns = [
-      new RegExp(`\\$${name}\\b`, 'g'),           // $paramName
-      new RegExp(`\\$\\{${name}\\}`, 'g'),        // ${paramName}
-      new RegExp(`\\{\\{${name}\\}\\}`, 'g'),     // {{paramName}}
-    ];
-
-    patterns.forEach((regex) => {
-      result = result.replace(regex, String(value));
-    });
-  });
-
-  return result;
-}
-
-/**
- * Replace parameter placeholders in JSON object recursively
- */
-function replaceParametersInObject(
-  obj: any,
-  parameters: Record<string, any>
-): any {
-  if (typeof obj === 'string') {
-    return replaceParameterPlaceholders(obj, parameters);
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map((item) => replaceParametersInObject(item, parameters));
-  }
-
-  if (obj !== null && typeof obj === 'object') {
-    const result: any = {};
-    Object.entries(obj).forEach(([key, value]) => {
-      result[key] = replaceParametersInObject(value, parameters);
-    });
-    return result;
-  }
-
-  return obj;
-}
 
 /**
  * Execute REST API tool
@@ -92,16 +42,16 @@ export async function executeRESTTool(
     let body = config.body;
 
     // Replace parameters in URL
-    url = replaceParameterPlaceholders(url, parameters);
+    url = replaceInString(url, parameters);
 
     // Replace parameters in headers
-    const processedHeaders = replaceParametersInObject(headers, parameters);
+    const processedHeaders = replaceInObject(headers, parameters);
 
     // Replace parameters in body
     let processedBody = body;
     if (body) {
       if (typeof body === 'string') {
-        processedBody = replaceParameterPlaceholders(body, parameters);
+        processedBody = replaceInString(body, parameters);
         // Try to parse as JSON if it looks like JSON
         if (processedBody.trim().startsWith('{') || processedBody.trim().startsWith('[')) {
           try {
@@ -111,7 +61,7 @@ export async function executeRESTTool(
           }
         }
       } else {
-        processedBody = replaceParametersInObject(body, parameters);
+        processedBody = replaceInObject(body, parameters);
       }
     }
 

@@ -5,6 +5,7 @@ import Database from 'better-sqlite3';
 import { Tool, Connection, Parameter } from '@prisma/client';
 import { ToolExecutionResult } from '@/app/servers/[id]/tools/[toolId]/test/actions';
 import { createServerLogger } from '@/lib/logger';
+import { replaceInString } from '@/lib/parameter-substitution';
 
 const MAX_ROWS = 1000;
 const QUERY_TIMEOUT_MS = 30000;
@@ -15,36 +16,6 @@ interface ToolWithConnection extends Omit<Tool, 'serverId'> {
   serverId: string;
 }
 
-/**
- * Replace parameter placeholders in SQL query with actual values
- * Supports: $paramName, ${paramName}, and {{paramName}} syntax
- *
- * NOTE: This does direct string substitution (not parameterized queries).
- * Direct substitution is used to maintain compatibility with the original
- * implementation and to support LIKE clauses with wildcards and other
- * dynamic SQL patterns that require direct value insertion.
- */
-function replaceParameters(
-  sql: string,
-  parameters: Record<string, any>
-): string {
-  let result = sql;
-
-  for (const [key, value] of Object.entries(parameters)) {
-    // Replace {{paramName}}, ${paramName}, or $paramName with value
-    const patterns = [
-      new RegExp(`\\{\\{${key}\\}\\}`, 'g'),      // {{paramName}}
-      new RegExp(`\\$\\{${key}\\}`, 'g'),         // ${paramName}
-      new RegExp(`\\$${key}\\b`, 'g'),            // $paramName
-    ];
-
-    patterns.forEach((regex) => {
-      result = result.replace(regex, String(value));
-    });
-  }
-
-  return result;
-}
 
 /**
  * Infer JSON Schema type from a value
@@ -302,7 +273,7 @@ async function executePostgresQuery(
   try {
     await client.connect();
 
-    const processedSql = replaceParameters(sql, parameters);
+    const processedSql = replaceInString(sql, parameters);
     const result = await client.query(processedSql);
 
     await client.end();
@@ -363,7 +334,7 @@ async function executeMySQLQuery(
       connectTimeout: 10000,
     });
 
-    const processedSql = replaceParameters(sql, parameters);
+    const processedSql = replaceInString(sql, parameters);
 
     const [rows, fields] = await conn.query(processedSql);
     await conn.end();
@@ -528,7 +499,7 @@ async function executeSQLiteQuery(
   try {
     const db = new Database(config.path || '', { readonly: true });
 
-    const processedSql = replaceParameters(sql, parameters);
+    const processedSql = replaceInString(sql, parameters);
 
     const stmt = db.prepare(processedSql);
     const rows = stmt.all();
