@@ -8,7 +8,7 @@ import os from 'os';
  * Get the logs directory path
  * Uses app data directory: C:\Users\{user}\AppData\Roaming\yasban\logs
  */
-function getLogsDirectory(): string {
+export function getLogsDirectory(): string {
   // In development, use local logs directory
   if (process.env.NODE_ENV === 'development') {
     const logsDir = path.join(process.cwd(), 'logs');

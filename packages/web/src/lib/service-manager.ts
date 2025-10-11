@@ -10,7 +10,7 @@
 import { platform } from 'os';
 import { join, resolve } from 'path';
 import prisma from './prisma';
-import { createServerLogger } from './logger';
+import { createServerLogger, getLogsDirectory } from './logger';
 import type winston from 'winston';
 
 type ServiceStatus = 'installed' | 'not_installed';
@@ -223,8 +223,8 @@ export class ServiceManager {
     const absoluteDbUrl = `file:${dbPath.replace(/\\/g, '/')}`;
     logger.info(`Absolute database URL: ${absoluteDbUrl}`);
 
-    // Calculate absolute log file path (using workspace root, not web package directory)
-    const logsDir = join(workspaceRoot, 'logs');
+    // Calculate absolute log file path (using shared logs directory)
+    const logsDir = getLogsDirectory();
     const logFilePath = join(logsDir, `server-${config.serverId}.log`);
     logger.info(`Log file path: ${logFilePath}`);
 
@@ -372,8 +372,8 @@ export class ServiceManager {
     const absoluteDbUrl = `file:${dbPath}`;
     logger.info(`Absolute database URL: ${absoluteDbUrl}`);
 
-    // Calculate absolute log file path (using workspace root, not web package directory)
-    const logsDir = join(workspaceRoot, 'logs');
+    // Calculate absolute log file path (using shared logs directory)
+    const logsDir = getLogsDirectory();
     const logFilePath = join(logsDir, `server-${config.serverId}.log`);
     logger.info(`Log file path: ${logFilePath}`);
 

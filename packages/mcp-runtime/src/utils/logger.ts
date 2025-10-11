@@ -77,8 +77,8 @@ export function createLogger(
     transports.push(
       new DailyRotateFile({
         dirname: logDir,
-        filename: `${filenameWithoutExt}${ext}`,
-        datePattern: '', // No date pattern - use exact filename
+        filename: `${filenameWithoutExt}-%DATE%${ext}`,
+        datePattern: 'YYYY-MM-DD',
         maxSize: '10m',
         maxFiles: '14d',
         zippedArchive: false,
