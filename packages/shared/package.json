@@ -1,0 +1,65 @@
+{
+  "name": "@yasban/shared",
+  "version": "1.0.0",
+  "description": "Shared library for Yasban - Tool executors, types, and utilities",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./executors": {
+      "types": "./dist/executors/index.d.ts",
+      "import": "./dist/executors/index.js",
+      "default": "./dist/executors/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js",
+      "default": "./dist/types/index.js"
+    },
+    "./types/tool-config": {
+      "types": "./dist/types/tool-config.d.ts",
+      "import": "./dist/types/tool-config.js",
+      "default": "./dist/types/tool-config.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.js",
+      "default": "./dist/utils/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "yasban",
+    "mcp",
+    "executors",
+    "shared"
+  ],
+  "author": "Yasban Team",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^6.1.0",
+    "pg": "^8.13.1",
+    "mysql2": "^3.11.5",
+    "tedious": "^18.6.1",
+    "better-sqlite3": "^11.7.0",
+    "axios": "^1.7.9",
+    "winston": "^3.18.3",
+    "zod": "^3.23.8",
+    "path-to-regexp": "^8.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "@types/better-sqlite3": "^7.6.12",
+    "typescript": "^5.6.3"
+  }
+}

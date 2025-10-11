@@ -18,7 +18,12 @@
       "Bash(test:*)",
       "Bash(npx prisma db execute:*)",
       "Bash(npx tsx:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm run build:*)",
+      "Bash(rm:*)",
+      "Bash(git rm:*)",
+      "Bash(npm run build:shared:*)",
+      "Bash(npm run build:web:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,0 +1,43 @@
+{
+  "name": "@yasban/mcp-runtime",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MCP Runtime for Yasban - Standalone MCP server with stdio, SSE, and HTTP transports",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "yasban-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "yasban",
+    "claude",
+    "ai-tools"
+  ],
+  "author": "Yasban Team",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@prisma/client": "^6.2.0",
+    "@yasban/shared": "*",
+    "commander": "^12.1.0",
+    "express": "^4.21.2",
+    "winston": "^3.18.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

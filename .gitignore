@@ -6,13 +6,13 @@ node_modules
 # testing
 /coverage
 
-# next.js
+# next.js (root-level old builds)
 /.next/
 /out/
 
-# production
-/dist
-/build
+# production (root-level old builds)
+/dist/
+/build/
 
 # misc
 .DS_Store
@@ -34,8 +34,22 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Compiled TypeScript outputs
+*.d.ts
+*.d.ts.map
+*.js.map
+# Except for config files
+!*.config.js
+!next.config.js
+!postcss.config.js
+!tailwind.config.js
+
 # electron
 /dist-electron
+
+# Package build outputs
+packages/*/dist/
+packages/*/build/
 
 # database
 *.db
