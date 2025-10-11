@@ -7,14 +7,44 @@
 
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 import prisma from '@/lib/prisma';
 import { createServerLogger, getServerLogPath } from '@/lib/logger';
+import { RuntimeExtractor } from './runtime-extractor';
 
 /**
  * ProcessManager - Singleton for managing MCP runtime processes
  */
 class ProcessManager {
   private processes = new Map<string, ChildProcess>();
+
+  /**
+   * Get path to MCP runtime executable
+   *
+   * Returns different paths based on environment:
+   * - Development: ../../packages/mcp-runtime/dist/index.js (relative workspace path)
+   * - Production: %APPDATA%/Yasban/mcp-runtime/index.js (extracted path)
+   */
+  private getRuntimePath(): string {
+    const isDev = process.env.NODE_ENV === 'development';
+
+    if (isDev) {
+      // Development: Use relative path to workspace
+      // process.cwd() is packages/web/, so go up to workspace root
+      return path.join(
+        process.cwd(),
+        '..',  // Up to packages/
+        '..',  // Up to yasban/ (workspace root)
+        'packages',
+        'mcp-runtime',
+        'dist',
+        'index.js'
+      );
+    } else {
+      // Production: Use extracted runtime from user data
+      return RuntimeExtractor.getRuntimeExecutable();
+    }
+  }
 
   /**
    * Start MCP server in GUI mode (as child process)
@@ -28,17 +58,8 @@ class ProcessManager {
     // Create winston logger for this server
     const logger = createServerLogger(serverId);
 
-    // Path to MCP runtime executable
-    // process.cwd() is packages/web/, so go up two levels to workspace root
-    const runtimePath = path.join(
-      process.cwd(),
-      '..',  // Up to packages/
-      '..',  // Up to yasban/ (workspace root)
-      'packages',
-      'mcp-runtime',
-      'dist',
-      'index.js'
-    );
+    // Get runtime path (environment-aware)
+    const runtimePath = this.getRuntimePath();
 
     // Get log file path for unified logging
     const logFilePath = getServerLogPath(serverId);
@@ -49,7 +70,19 @@ class ProcessManager {
       port,
       runtimePath,
       logFilePath,
+      environment: process.env.NODE_ENV || 'production',
     });
+
+    // Verify runtime exists
+    if (!fs.existsSync(runtimePath)) {
+      const errorMsg = `MCP runtime not found at ${runtimePath}. ` +
+        (process.env.NODE_ENV === 'development'
+          ? `Run 'npm run build:mcp' to build the runtime.`
+          : `Please reinstall the application.`);
+
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
+    }
 
     // Spawn MCP runtime process
     const proc = spawn(

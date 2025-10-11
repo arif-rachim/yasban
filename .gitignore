@@ -49,7 +49,6 @@ next-env.d.ts
 
 # Package build outputs
 packages/*/dist/
-packages/*/build/
 
 # database
 *.db

@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
+import { RuntimeExtractor } from '../src/lib/runtime-extractor';
 
 /**
  * Yasban - Electron Main Process
@@ -52,7 +53,43 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+/**
+ * Initialize application
+ * - Extract MCP runtime on first run (production only)
+ * - Future: Check for updates, migrate database, etc.
+ */
+async function initialize() {
+  console.log('[Main] Initializing application...');
+
+  // Extract MCP runtime if needed (production only)
+  if (!isDev) {
+    if (RuntimeExtractor.needsExtraction()) {
+      console.log('[Main] First run detected, extracting MCP runtime...');
+      try {
+        await RuntimeExtractor.extract();
+        console.log('[Main] ✓ MCP runtime extracted successfully');
+      } catch (error: any) {
+        console.error('[Main] ✗ Failed to extract MCP runtime:', error.message);
+        // Show error dialog to user
+        // For now, just log - app will fail when trying to start servers
+      }
+    } else {
+      console.log('[Main] MCP runtime already extracted');
+      const version = await RuntimeExtractor.getVersion();
+      if (version) {
+        console.log(`[Main] Runtime version: ${version}`);
+      }
+    }
+  }
+
+  console.log('[Main] ✓ Initialization complete');
+}
+
+app.whenReady().then(async () => {
+  // Initialize app (extract runtime, check updates, etc.)
+  await initialize();
+
+  // Create main window
   createWindow();
 
   app.on('activate', () => {
