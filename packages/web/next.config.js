@@ -20,6 +20,8 @@ const nextConfig = {
     'mysql2',
     'better-sqlite3',
     '@prisma/client',
+    'node-windows',
+    'node-linux',
   ],
 
   // Experimental features for Server Actions
@@ -66,7 +68,9 @@ const nextConfig = {
         'tedious',
         'pg',
         'mysql2',
-        'better-sqlite3'
+        'better-sqlite3',
+        'node-windows',
+        'node-linux'
       );
     }
 

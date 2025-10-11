@@ -18,9 +18,11 @@ model Server {
   name        String   @unique
   description String?
   status      String   @default("stopped") // 'stopped' | 'running'
-  transport   String   @default("stdio")   // 'stdio' | 'sse' | 'streamable-http'
-  runMode     String   @default("gui")     // 'gui' | 'service'
-  port        Int?     // Port number when running (for SSE/Streamable HTTP transports)
+  transport        String   @default("stdio")   // 'stdio' | 'sse' | 'streamable-http'
+  runMode          String   @default("gui")     // 'gui' | 'service'
+  port             Int?     // Port number when running (for SSE/Streamable HTTP transports)
+  serviceInstalled Boolean  @default(false)     // Track if service is installed in OS
+  serviceName      String?  // Service name in OS (e.g., "Yasban-MCP-ServerName")
 
   // Relationships
   tools       Tool[]

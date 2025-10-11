@@ -13,6 +13,7 @@ interface Server {
   runMode: string;
   status: string;
   port: number | null;
+  serviceInstalled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

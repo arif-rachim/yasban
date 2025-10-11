@@ -26,6 +26,7 @@ export async function startServerGUI(serverId: string) {
         status: true,
         runMode: true,
         transport: true,
+        port: true,
       },
     });
 
@@ -52,8 +53,15 @@ export async function startServerGUI(serverId: string) {
       };
     }
 
-    // Find an available port (for SSE/HTTP transports)
-    const port = await findAvailablePort(3100);
+    // Determine port: use saved port if available, otherwise auto-assign
+    let port: number;
+    if (server.port) {
+      // Use saved port (user configured)
+      port = server.port;
+    } else {
+      // Auto-assign an available port
+      port = await findAvailablePort(3100);
+    }
 
     // Update database status to running and save port FIRST
     await prisma.server.update({
@@ -74,12 +82,12 @@ export async function startServerGUI(serverId: string) {
         message: `Server "${server.name}" started successfully on port ${port}`,
       };
     } catch (processError: any) {
-      // Process failed to start - rollback database status and clear port!
+      // Process failed to start - rollback database status (keep port for retry)
       console.error('[startServerGUI] Process failed to start, rolling back:', processError);
 
       await prisma.server.update({
         where: { id: serverId },
-        data: { status: 'stopped', port: null },
+        data: { status: 'stopped' },
       });
 
       revalidatePath(`/servers/${serverId}`);
@@ -133,11 +141,11 @@ export async function stopServerGUI(serverId: string) {
     // Stop MCP process (won't throw error if not found)
     await processManager.stopGUI(serverId);
 
-    // ALWAYS update database status to stopped and clear port
+    // ALWAYS update database status to stopped (keep port for next restart)
     // (even if process wasn't running - fixes status mismatch)
     await prisma.server.update({
       where: { id: serverId },
-      data: { status: 'stopped', port: null },
+      data: { status: 'stopped' },
     });
 
     // Revalidate pages
@@ -185,7 +193,7 @@ export async function getServerStatus(serverId: string) {
     if (server.status === 'running' && !isActuallyRunning && server.runMode === 'gui') {
       await prisma.server.update({
         where: { id: serverId },
-        data: { status: 'stopped', port: null },
+        data: { status: 'stopped' },
       });
 
       return {
@@ -253,7 +261,7 @@ export async function syncServerStatus(serverId: string) {
       // DB says running but process not found - fix it
       await prisma.server.update({
         where: { id: serverId },
-        data: { status: 'stopped', port: null },
+        data: { status: 'stopped' },
       });
 
       revalidatePath(`/servers/${serverId}`);

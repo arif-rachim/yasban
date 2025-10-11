@@ -17,11 +17,32 @@ export async function createServer(formData: FormData) {
     const description = formData.get('description') as string;
     const transport = formData.get('transport') as string;
     const runMode = formData.get('runMode') as string;
+    const portStr = formData.get('port') as string;
 
     if (!name || !transport || !runMode) {
       return {
         success: false,
         error: 'Name, transport, and run mode are required',
+      };
+    }
+
+    // Parse and validate port
+    let port: number | null = null;
+    if (portStr && portStr.trim() !== '') {
+      port = parseInt(portStr, 10);
+      if (isNaN(port) || port < 1024 || port > 65535) {
+        return {
+          success: false,
+          error: 'Port must be a number between 1024 and 65535',
+        };
+      }
+    }
+
+    // Port is only applicable for SSE and Streamable HTTP
+    if (port && transport === 'stdio') {
+      return {
+        success: false,
+        error: 'Port is not applicable for stdio transport',
       };
     }
 
@@ -32,6 +53,7 @@ export async function createServer(formData: FormData) {
         transport,
         runMode,
         status: 'stopped',
+        port,
       },
     });
 

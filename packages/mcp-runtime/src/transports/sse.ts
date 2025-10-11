@@ -190,6 +190,50 @@ export async function startSSETransport(
     });
   });
 
+  // OAuth/OIDC discovery endpoints - return "not supported" JSON
+  app.get('/.well-known/oauth-authorization-server', (req, res) => {
+    res.status(501).json({
+      error: 'not_supported',
+      message: 'OAuth 2.0 Authorization Server is not supported by this MCP server'
+    });
+  });
+
+  app.get('/.well-known/openid-configuration', (req, res) => {
+    res.status(501).json({
+      error: 'not_supported',
+      message: 'OpenID Connect is not supported by this MCP server'
+    });
+  });
+
+  app.get('/.well-known/oauth-protected-resource', (req, res) => {
+    res.status(501).json({
+      error: 'not_supported',
+      message: 'OAuth 2.0 Resource Server is not supported by this MCP server'
+    });
+  });
+
+  app.post('/register', (req, res) => {
+    res.status(501).json({
+      error: 'not_supported',
+      message: 'Dynamic Client Registration is not supported by this MCP server'
+    });
+  });
+
+  // Handle SSE-prefixed variants
+  app.get('/sse/.well-known/:type', (req, res) => {
+    res.status(501).json({
+      error: 'not_supported',
+      message: 'OAuth/OIDC is not supported by this MCP server'
+    });
+  });
+
+  app.get('/.well-known/:type/sse', (req, res) => {
+    res.status(501).json({
+      error: 'not_supported',
+      message: 'OAuth/OIDC is not supported by this MCP server'
+    });
+  });
+
   // Create MCP Server
   const server = new Server(
     {

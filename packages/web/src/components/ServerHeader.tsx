@@ -16,6 +16,10 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { deleteServer } from '@/app/actions/servers';
 import { startServerGUI, stopServerGUI } from '@/app/servers/[id]/actions';
+import {
+  installService,
+  uninstallService,
+} from '@/app/servers/[id]/service-actions';
 
 interface ServerHeaderProps {
   server: {
@@ -25,6 +29,8 @@ interface ServerHeaderProps {
     status: string;
     transport: string;
     port: number | null;
+    runMode: string;
+    serviceInstalled: boolean;
   };
 }
 
@@ -35,6 +41,8 @@ export function ServerHeader({ server }: ServerHeaderProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [isUninstalling, setIsUninstalling] = useState(false);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -129,6 +137,68 @@ export function ServerHeader({ server }: ServerHeaderProps) {
     }
   };
 
+  // Service mode handlers
+  const handleInstallService = async () => {
+    setIsInstalling(true);
+
+    try {
+      const result = await installService(server.id);
+
+      if (result.success) {
+        toast({
+          variant: 'success',
+          title: 'Service Installed',
+          description: result.message || 'Service installed successfully',
+        });
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Failed to Install',
+          description: result.error || 'Failed to install service',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'error',
+        title: 'Error',
+        description: error.message || 'Failed to install service',
+      });
+    } finally {
+      setIsInstalling(false);
+    }
+  };
+
+  const handleUninstallService = async () => {
+    setIsUninstalling(true);
+
+    try {
+      const result = await uninstallService(server.id);
+
+      if (result.success) {
+        toast({
+          variant: 'success',
+          title: 'Service Uninstalled',
+          description: result.message || 'Service uninstalled successfully',
+        });
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Failed to Uninstall',
+          description: result.error || 'Failed to uninstall service',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'error',
+        title: 'Error',
+        description: error.message || 'Failed to uninstall service',
+      });
+    } finally {
+      setIsUninstalling(false);
+    }
+  };
+
+
   return (
     <>
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
@@ -142,16 +212,18 @@ export function ServerHeader({ server }: ServerHeaderProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Status Badge */}
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                server.status === 'running'
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300'
-                  : 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300'
-              }`}
-            >
-              {server.status === 'running' ? '● Running' : '○ Stopped'}
-            </span>
+            {/* Status Badge - Only show for GUI mode */}
+            {server.runMode === 'gui' && (
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  server.status === 'running'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+                    : 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300'
+                }`}
+              >
+                {server.status === 'running' ? '● Running' : '○ Stopped'}
+              </span>
+            )}
 
             {/* Transport Badge */}
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
@@ -165,25 +237,59 @@ export function ServerHeader({ server }: ServerHeaderProps) {
               </span>
             )}
 
-            {/* GUI Mode Start/Stop Controls */}
-            {server.status === 'stopped' ? (
-              <Button
-                size="sm"
-                onClick={handleStart}
-                disabled={isStarting}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                {isStarting ? 'Starting...' : '▶ Start Server'}
-              </Button>
+            {/* Conditional Controls based on runMode */}
+            {server.runMode === 'gui' ? (
+              // GUI Mode: Start/Stop Controls
+              server.status === 'stopped' ? (
+                <Button
+                  size="sm"
+                  onClick={handleStart}
+                  disabled={isStarting}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isStarting ? 'Starting...' : '▶ Start Server'}
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleStop}
+                  disabled={isStopping}
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  {isStopping ? 'Stopping...' : '⏹ Stop Server'}
+                </Button>
+              )
             ) : (
-              <Button
-                size="sm"
-                onClick={handleStop}
-                disabled={isStopping}
-                className="bg-orange-600 hover:bg-orange-700 text-white"
-              >
-                {isStopping ? 'Stopping...' : '⏹ Stop Server'}
-              </Button>
+              // Service Mode: Install/Uninstall only (auto-start configured)
+              <>
+                {!server.serviceInstalled ? (
+                  // Service not installed: Show Install button
+                  <Button
+                    size="sm"
+                    onClick={handleInstallService}
+                    disabled={isInstalling}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {isInstalling ? 'Installing...' : '📦 Install Service'}
+                  </Button>
+                ) : (
+                  // Service installed: Show badge and Uninstall button
+                  <>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300">
+                      ✓ Service Installed (Auto-Start)
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleUninstallService}
+                      disabled={isUninstalling}
+                      className="border-red-600 text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                    >
+                      {isUninstalling ? 'Uninstalling...' : '🗑️ Uninstall Service'}
+                    </Button>
+                  </>
+                )}
+              </>
             )}
 
             {/* Delete Button */}

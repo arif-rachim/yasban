@@ -100,11 +100,11 @@ class ProcessManager {
       // Remove from active processes
       this.processes.delete(serverId);
 
-      // Update database status to 'stopped' and clear port
+      // Update database status to 'stopped' (keep port for next restart)
       try {
         await prisma.server.update({
           where: { id: serverId },
-          data: { status: 'stopped', port: null },
+          data: { status: 'stopped' },
         });
       } catch (error) {
         logger.error(`Failed to update server status in database`, { error });

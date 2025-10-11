@@ -2,7 +2,7 @@
 
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { useRef, useActionState } from 'react';
+import { useRef, useActionState, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,7 @@ interface Server {
   transport: string;
   runMode: string;
   status: string;
+  port: number | null;
 }
 
 interface ServerFormProps {
@@ -42,6 +43,7 @@ function SubmitButton({ mode }: { mode: 'create' | 'edit' }) {
 export function ServerForm({ mode, server, returnTo }: ServerFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const [selectedTransport, setSelectedTransport] = useState(server?.transport || 'stdio');
 
   const action = mode === 'create' ? createServer : updateServerSettings;
 
@@ -133,6 +135,7 @@ export function ServerForm({ mode, server, returnTo }: ServerFormProps) {
                   id="transport"
                   name="transport"
                   defaultValue="stdio"
+                  onChange={(e) => setSelectedTransport(e.target.value)}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   required
                 >
@@ -144,6 +147,27 @@ export function ServerForm({ mode, server, returnTo }: ServerFormProps) {
                   Streamable HTTP is recommended for remote access (MCP spec 2025-03-26)
                 </p>
               </div>
+
+              {/* Port (conditional - only for SSE and Streamable HTTP) */}
+              {(selectedTransport === 'sse' || selectedTransport === 'streamable-http') && (
+                <div className="grid gap-2">
+                  <Label htmlFor="port">
+                    Port (optional)
+                  </Label>
+                  <Input
+                    id="port"
+                    name="port"
+                    type="number"
+                    min="1024"
+                    max="65535"
+                    placeholder="3100 (auto-assign if empty)"
+                    defaultValue={server?.port ? server.port.toString() : ''}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Leave empty to auto-assign an available port starting from 3100
+                  </p>
+                </div>
+              )}
 
               {/* Run Mode */}
               <div className="grid gap-2">
@@ -198,6 +222,7 @@ export function ServerForm({ mode, server, returnTo }: ServerFormProps) {
                     id="transport"
                     name="transport"
                     defaultValue={server?.transport}
+                    onChange={(e) => setSelectedTransport(e.target.value)}
                     disabled={server?.status === 'running'}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     required
@@ -210,6 +235,28 @@ export function ServerForm({ mode, server, returnTo }: ServerFormProps) {
                     Streamable HTTP is recommended for remote access (MCP spec 2025-03-26)
                   </p>
                 </div>
+
+                {/* Port (conditional - only for SSE and Streamable HTTP) */}
+                {(selectedTransport === 'sse' || selectedTransport === 'streamable-http') && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="port">
+                      Port (optional)
+                    </Label>
+                    <Input
+                      id="port"
+                      name="port"
+                      type="number"
+                      min="1024"
+                      max="65535"
+                      placeholder="3100 (auto-assign if empty)"
+                      defaultValue={server?.port ? server.port.toString() : ''}
+                      disabled={server?.status === 'running'}
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Leave empty to auto-assign an available port starting from 3100
+                    </p>
+                  </div>
+                )}
 
                 {/* Run Mode */}
                 <div className="grid gap-2">

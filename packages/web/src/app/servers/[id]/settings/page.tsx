@@ -20,6 +20,7 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
       transport: true,
       runMode: true,
       status: true,
+      port: true,
     },
   });
 
