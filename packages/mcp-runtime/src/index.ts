@@ -28,7 +28,9 @@ program
   .requiredOption('-s, --server <server-id>', 'Server ID to run (from Yasban database)')
   .option('-t, --transport <type>', 'Transport type: stdio|sse|http', 'stdio')
   .option('-p, --port <port>', 'Port for SSE/HTTP transports', '3000')
-  .option('--log-level <level>', 'Log level: error|warn|info|debug', 'info');
+  .option('--log-level <level>', 'Log level: error|warn|info|debug', 'info')
+  .option('--log-file <path>', 'Path to log file for unified logging')
+  .option('--auth-token <token>', 'Authorization bearer token (optional, for SSE/HTTP security)');
 
 program.parse(process.argv);
 
@@ -44,12 +46,18 @@ async function main() {
     // Set log level
     process.env.LOG_LEVEL = options.logLevel;
 
+    // Set auth token if provided
+    if (options.authToken) {
+      process.env.MCP_AUTH_TOKEN = options.authToken;
+      console.log('✓ Authorization bearer token configured');
+    }
+
     // Load server configuration from database
     console.log(`Loading server configuration: ${serverId}`);
     const serverConfig = await loadServerConfig(serverId);
 
-    // Create logger
-    const logger = createLogger(serverConfig.id, serverConfig.name);
+    // Create logger (with optional log file)
+    const logger = createLogger(serverConfig.id, serverConfig.name, options.logFile);
 
     logger.info('Yasban MCP Runtime starting...', {
       serverId: serverConfig.id,

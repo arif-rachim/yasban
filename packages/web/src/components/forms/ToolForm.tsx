@@ -301,6 +301,7 @@ export function ToolForm({ mode, serverId, connections, tool }: ToolFormProps) {
                           <ParameterNameInput
                             placeholder="param_name"
                             defaultValue={param.name}
+                            onChange={(e) => updateParameter(index, 'name', e.target.value)}
                             name={`parameters[${index}][name]`}
                             className="h-8 text-sm"
                             suggestedStyle={toolType === 'sql' ? 'snake_case' : 'camelCase'}

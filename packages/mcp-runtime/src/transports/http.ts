@@ -49,7 +49,95 @@ export async function startHttpTransport(
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    next();
+  });
+
+  // Optional Authorization Bearer middleware
+  app.use((req, res, next) => {
+    const authToken = process.env.MCP_AUTH_TOKEN;
+
+    // If no auth token configured, allow all requests
+    if (!authToken) {
+      return next();
+    }
+
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      logger.warn('Request rejected: Missing Authorization header', {
+        path: req.path,
+        clientIp: req.ip || req.socket.remoteAddress,
+      });
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Missing Authorization header',
+      });
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      logger.warn('Request rejected: Invalid Authorization format', {
+        path: req.path,
+        clientIp: req.ip || req.socket.remoteAddress,
+      });
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid Authorization header format. Expected: Bearer <token>',
+      });
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    if (token !== authToken) {
+      logger.warn('Request rejected: Invalid token', {
+        path: req.path,
+        clientIp: req.ip || req.socket.remoteAddress,
+      });
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid authorization token',
+      });
+    }
+
+    // Token is valid, continue
+    next();
+  });
+
+  // Request logging middleware
+  app.use((req, res, next) => {
+    const startTime = Date.now();
+    let logged = false;
+
+    // Log after response is sent
+    const logRequest = () => {
+      if (logged) return;
+      logged = true;
+
+      const duration = Date.now() - startTime;
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+
+      logger.info(`→ ${req.method} ${req.path}`, {
+        method: req.method,
+        path: req.path,
+        query: Object.keys(req.query).length > 0 ? req.query : undefined,
+        statusCode: res.statusCode,
+        duration: `${duration}ms`,
+        clientIp,
+        userAgent: req.headers['user-agent']?.substring(0, 100),
+      });
+    };
+
+    // Catch when response finishes
+    res.on('finish', () => {
+      logRequest();
+    });
+
     next();
   });
 

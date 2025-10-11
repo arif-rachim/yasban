@@ -23,7 +23,8 @@
       "Bash(rm:*)",
       "Bash(git rm:*)",
       "Bash(npm run build:shared:*)",
-      "Bash(npm run build:web:*)"
+      "Bash(npm run build:web:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

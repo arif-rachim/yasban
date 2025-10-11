@@ -1,62 +1,138 @@
 # Current Session Status
 
 **Last Updated**: 2025-10-11
-**Session**: GUI Mode MCP Server Fixes - Dynamic Port Allocation & Logging ✅
-**Status**: 🟡 **PENDING REBOOT** - Database migration needs to be applied
-**Progress**: 95% Complete (migration pending)
+**Session**: SSE Transport & Form Fixes ✅
+**Status**: 🟢 **COMPLETE** - All fixes tested and working
+**Progress**: 98% Complete (Phase 1)
 
 ---
 
-## ⚠️ AFTER REBOOT - DO THIS FIRST
-
-The database is currently locked. After rebooting, follow these steps:
-
-### Step 1: Apply Database Migration
-```bash
-npm run db:migrate
-# When prompted for migration name, just press ENTER (uses existing migration: add_port_to_server)
-```
-
-**OR** use this faster alternative:
-```bash
-npx prisma db push
-```
-
-### Step 2: Start Development Server
-```bash
-npm run dev
-```
-
-### Step 3: Test the Fixes
-1. Open the web app at http://localhost:3001
-2. Navigate to a server
-3. Click "Start Server"
-4. **Expected behavior**:
-   - Server starts on a dynamic port (e.g., Port 3100, 3101, etc.)
-   - Port number displays in the GUI header (purple badge)
-   - All start/stop events logged to `logs/server-{serverId}-{date}.log`
-   - Check LogsViewer to see the logs
-   - No more "port already in use" errors!
-   - No more false "running" status when server crashes
-
-### Step 4: Verify Logs
-Open LogsViewer in the GUI or check directly:
-```bash
-# View server logs
-cat logs/server-{serverId}-2025-10-11.log
-```
-
-You should see entries like:
-```
-2025-10-11 07:00:00 [INFO] Starting MCP server with sse transport on port 3100
-2025-10-11 07:00:03 [INFO] MCP server started successfully
-```
-
----
-
-## 🎯 Latest Milestone: GUI Mode MCP Server Fixes (95% Complete) ✅
+## 🎯 Latest Session: SSE Transport & Form Fixes (100% Complete) ✅
 
 ### ✅ What Was Completed This Session
+
+Fixed critical SSE transport issues and parameter form bug!
+
+#### Issues Fixed:
+
+**Issue 1: SSE Session ID Mismatch** ✅
+- **Problem**: Server-generated session IDs didn't match client-received IDs
+- **Root Cause**: We were generating custom UUIDs instead of using `transport.sessionId` property
+- **Solution**:
+  - Use `transport.sessionId` getter to retrieve SDK-generated session ID
+  - Store sessions by SDK's session ID, not custom UUID
+- **Result**: Session IDs now match perfectly between server and client
+
+**Issue 2: "stream is not readable" Error** ✅
+- **Problem**: `handlePostMessage()` failed with "stream is not readable" error
+- **Root Cause**: `express.json()` middleware consumed request stream, then `handlePostMessage()` tried to read it again
+- **Solution**: Pass pre-parsed `req.body` as third parameter to `handlePostMessage(req, res, req.body)`
+- **Result**: MCP messages processed successfully, proper JSON-RPC responses
+
+**Issue 3: Parameter Name Not Saving** ✅
+- **Problem**: Parameter names were not saved to database, only descriptions and types
+- **Root Cause**: `ParameterNameInput` component missing `onChange` handler to update React state
+- **Solution**: Added `onChange={(e) => updateParameter(index, 'name', e.target.value)}` handler
+- **Result**: Parameter names now save correctly to database
+
+**Issue 4: MCP Protocol Verification** ✅
+- **Problem**: Uncertainty if MCP protocol was implemented correctly
+- **Solution**: Tested with MCP Inspector, verified SSE response
+- **Result**: Protocol working perfectly - tools list with proper schemas returned
+
+#### Technical Implementation:
+
+1. **SSE Transport Session Management** (`packages/mcp-runtime/src/transports/sse.ts`) ✅
+   ```typescript
+   // Before: Generated custom UUID
+   const sessionId = randomUUID();
+
+   // After: Use SDK-generated session ID
+   const transport = new SSEServerTransport('/message', res);
+   await server.connect(transport);
+   const sessionId = transport.sessionId; // ✅ Use SDK's ID
+   ```
+
+2. **Fixed Stream Consumption Issue** ✅
+   ```typescript
+   // Before: Stream already consumed by express.json()
+   await session.transport.handlePostMessage(req, res);
+
+   // After: Pass pre-parsed body
+   await session.transport.handlePostMessage(req, res, req.body);
+   ```
+
+3. **Fixed Parameter Form** (`packages/web/src/components/forms/ToolForm.tsx`) ✅
+   ```typescript
+   <ParameterNameInput
+     placeholder="param_name"
+     defaultValue={param.name}
+     onChange={(e) => updateParameter(index, 'name', e.target.value)} // ✅ Added
+     // ... other props
+   />
+   ```
+
+4. **Verified MCP Response** ✅
+   ```json
+   {
+     "jsonrpc": "2.0",
+     "id": 1,
+     "result": {
+       "tools": [{
+         "name": "select_users",
+         "description": "select users",
+         "inputSchema": {
+           "type": "object",
+           "properties": {
+             "user_name": {
+               "type": "string",
+               "description": "user name"
+             }
+           },
+           "required": ["user_name"]
+         }
+       }]
+     }
+   }
+   ```
+
+#### Architecture:
+
+```
+┌──────────────┐
+│ MCP Inspector│
+│ GET /sse     │
+└──────┬───────┘
+       │
+       ▼
+┌─────────────────────────┐
+│ SSEServerTransport      │
+│ 1. Generate session ID  │  ← SDK generates UUID
+│ 2. Return via SSE       │
+└──────┬──────────────────┘
+       │
+       ▼
+┌─────────────────────────┐
+│ Client receives ID      │
+│ POST /message?sessionId=│
+│ {SDK-generated-UUID}    │
+└──────┬──────────────────┘
+       │
+       ▼
+┌─────────────────────────┐
+│ Server routes message   │
+│ 1. Lookup session by ID │  ← ID matches!
+│ 2. Pass req.body to     │  ← Pre-parsed
+│    handlePostMessage()  │
+│ 3. Return JSON response │  ← Proper MCP
+└─────────────────────────┘
+```
+
+---
+
+## 🎯 Previous Session: GUI Mode MCP Server Fixes (100% Complete) ✅
+
+### ✅ What Was Completed Previous Session
 
 Fixed three critical issues when starting MCP servers from the GUI and added comprehensive logging!
 
@@ -704,7 +780,24 @@ npm run clean            # Clean build artifacts
 
 ---
 
-## 📦 Files Created/Modified for GUI Mode Fixes
+## 📦 Files Modified in Latest Session (SSE & Form Fixes)
+
+### Modified
+- `packages/mcp-runtime/src/transports/sse.ts` - Fixed session ID handling and stream consumption
+  - Line 233: Changed to use `transport.sessionId` instead of custom UUID
+  - Line 330: Added `req.body` as third parameter to `handlePostMessage()`
+- `packages/web/src/components/forms/ToolForm.tsx` - Fixed parameter name saving
+  - Line 304: Added `onChange` handler to ParameterNameInput component
+
+### Deleted
+- `AFTER_REBOOT.md` - Deleted after successful testing (as instructed in file)
+
+### Documentation Updated
+- `docs/CURRENT_SESSION_STATUS.md` - Added latest session accomplishments
+
+---
+
+## 📦 Files Created/Modified for Previous Session (GUI Mode Fixes)
 
 ### Created
 - `packages/web/src/lib/port-finder.ts` (58 lines) - Port availability checker
@@ -717,17 +810,8 @@ npm run clean            # Clean build artifacts
 - `packages/web/src/components/ServerHeader.tsx` - Added port badge display
 - `packages/web/src/components/ConditionalServerLayout.tsx` - Added port to Server interface
 
-### Prisma Client Generated
-- Regenerated with `npx prisma generate` to include new `port` field
-
-### Migration Status
-- ⚠️ **PENDING**: Migration created but not applied (database locked)
-- **Migration SQL**: `ALTER TABLE "Server" ADD COLUMN "port" INTEGER;`
-- **Action needed**: Run `npm run db:migrate` or `npx prisma db push` after reboot
-
 ---
 
-**Status**: 🟡 **PENDING REBOOT & MIGRATION**
-**Next Step**: Apply database migration after reboot, then test
-**Current Phase**: Phase 1 - **95% complete** (pending final testing)
-**Ready to Commit**: Almost - need to test after migration applied
+**Status**: 🟢 **COMPLETE** - All fixes tested and working
+**Current Phase**: Phase 1 - **98% complete**
+**Ready to Commit**: ✅ YES - All changes tested and verified

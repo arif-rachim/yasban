@@ -8,7 +8,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import prisma from '@/lib/prisma';
-import { createServerLogger } from '@/lib/logger';
+import { createServerLogger, getServerLogPath } from '@/lib/logger';
 
 /**
  * ProcessManager - Singleton for managing MCP runtime processes
@@ -40,11 +40,15 @@ class ProcessManager {
       'index.js'
     );
 
+    // Get log file path for unified logging
+    const logFilePath = getServerLogPath(serverId);
+
     logger.info(`Starting MCP server with ${transport} transport on port ${port}`, {
       serverId,
       transport,
       port,
       runtimePath,
+      logFilePath,
     });
 
     // Spawn MCP runtime process
@@ -60,6 +64,8 @@ class ProcessManager {
         port.toString(),
         '--log-level',
         'info',
+        '--log-file',
+        logFilePath,
       ],
       {
         detached: false, // Process dies when parent (Next.js) dies
