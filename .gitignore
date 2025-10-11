@@ -86,3 +86,4 @@ yarn-error.log*
 .parcel-cache
 .next
 .turbo
+/packages/web/logs/

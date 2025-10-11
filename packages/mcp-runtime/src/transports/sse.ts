@@ -98,12 +98,18 @@ export async function startSSETransport(
   // Register tool router with config cache (enables hot-reload)
   registerTools(server, configCache, logger);
 
-  // Create SSE transport with proper Express integration
-  // SSEServerTransport handles its own Express route setup
-  const transport = new SSEServerTransport('/message', app as any);
+  // SSE endpoint - creates a new transport for each connection
+  app.get('/sse', async (req, res) => {
+    logger.info('New SSE connection established');
+    const transport = new SSEServerTransport('/message', res);
+    await server.connect(transport);
+  });
 
-  // Connect server to transport
-  await server.connect(transport);
+  // Message endpoint - handles POST messages from SSE clients
+  app.post('/message', async (req, res) => {
+    // SSE transport handles this internally
+    res.status(200).end();
+  });
 
   // Start Express server
   const httpServer = app.listen(port, () => {

@@ -11,7 +11,7 @@
     "build:shared": "npm run build --workspace=@yasban/shared",
     "build:mcp": "npm run build --workspace=@yasban/mcp-runtime",
     "build:web": "npm run build --workspace=@yasban/web",
-    "dev": "npm run dev --workspace=@yasban/web",
+    "dev": "node scripts/cleanup-dev.js --ports 3001 --electron --next && npm run dev --workspace=@yasban/web",
     "dev:mcp": "npm run dev --workspace=@yasban/mcp-runtime",
     "clean": "npm run clean --workspaces --if-present && rimraf node_modules/.cache",
     "db:generate": "prisma generate",

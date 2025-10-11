@@ -6,6 +6,7 @@
  */
 
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { ServerConfig, ToolConfig } from '../config-loader.js';
 import type { Logger } from '../utils/logger.js';
 import type { ConfigCache } from '../config-cache.js';
@@ -96,10 +97,33 @@ export function registerTools(
     initialToolCount: initialConfig.tools.length,
   });
 
-  // Register a single universal tool handler that routes dynamically
+  // Register tools/list handler (for tool discovery)
   mcpServer.setRequestHandler(
-    'tools/call' as any,
-    async (request: any) => {
+    ListToolsRequestSchema,
+    async () => {
+      // Get LATEST config from cache (hot-reload!)
+      const serverConfig = configCache.getConfig();
+      if (!serverConfig) {
+        logger.error('ConfigCache returned null config for tools/list');
+        return { tools: [] };
+      }
+
+      // Build tool list from current config
+      const tools = serverConfig.tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description || `Execute ${tool.name} (${tool.type} tool)`,
+        inputSchema: buildParametersSchema(tool),
+      }));
+
+      logger.debug('tools/list request', { toolCount: tools.length });
+      return { tools };
+    }
+  );
+
+  // Register tools/call handler (for tool execution)
+  mcpServer.setRequestHandler(
+    CallToolRequestSchema,
+    async (request) => {
       // Get LATEST config from cache (hot-reload!)
       const serverConfig = configCache.getConfig();
       if (!serverConfig) {
@@ -141,18 +165,21 @@ export function registerTools(
 
       // Route to appropriate executor based on tool type
       try {
+        // Ensure args is always an object (default to empty object if undefined)
+        const toolArgs = args || {};
+
         switch (tool.type) {
           case 'sql':
-            return await executeSqlTool(tool, args, serverConfig, logger);
+            return await executeSqlTool(tool, toolArgs, serverConfig, logger);
 
           case 'rest':
-            return await executeRestApiTool(tool, args, serverConfig, logger);
+            return await executeRestApiTool(tool, toolArgs, serverConfig, logger);
 
           case 'webhook':
-            return await executeWebhook(tool, args, serverConfig, logger);
+            return await executeWebhook(tool, toolArgs, serverConfig, logger);
 
           case 'javascript':
-            return await executeJavaScript(tool, args, serverConfig, logger);
+            return await executeJavaScript(tool, toolArgs, serverConfig, logger);
 
           default:
             logger.error('Unknown tool type', { toolType: tool.type, toolName });

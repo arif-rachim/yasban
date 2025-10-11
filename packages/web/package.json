@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:next\" \"npm run dev:electron:wait\" --kill-others",
+    "dev": "node ../../scripts/cleanup-dev.js --ports 3001 --electron --next && concurrently \"npm run dev:next\" \"npm run dev:electron:wait\" --kill-others",
     "dev:next": "next dev -p 3001",
     "dev:electron": "cross-env NODE_ENV=development electron .",
     "dev:electron:wait": "wait-on http://localhost:3001 && npm run dev:electron",

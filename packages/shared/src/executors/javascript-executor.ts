@@ -1,6 +1,6 @@
-import type { ToolExecutionResult, ToolWithServerId } from '../types/common';
-import { createServerLogger } from '../utils/logger';
-import { parseToolConfig, type JavaScriptToolConfig } from '../types/tool-config';
+import type { ToolExecutionResult, ToolWithServerId } from '../types/common.js';
+import { createServerLogger } from '../utils/logger.js';
+import { parseToolConfig, type JavaScriptToolConfig } from '../types/tool-config.js';
 
 const EXECUTION_TIMEOUT_MS = 5000;
 

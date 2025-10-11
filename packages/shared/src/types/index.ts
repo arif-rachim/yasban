@@ -7,7 +7,7 @@ export type {
   ToolWithConnection,
   ToolWithServerId,
   Logger,
-} from './common';
+} from './common.js';
 
 export {
   parseToolConfig,
@@ -21,4 +21,4 @@ export {
   type RestToolConfig,
   type WebhookToolConfig,
   type JavaScriptToolConfig,
-} from './tool-config';
+} from './tool-config.js';

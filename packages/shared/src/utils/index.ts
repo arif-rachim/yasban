@@ -2,5 +2,5 @@
  * Utilities - Barrel export
  */
 
-export { createServerLogger } from './logger';
-export { replaceInString, replaceInObject } from './parameter-substitution';
+export { createServerLogger } from './logger.js';
+export { replaceInString, replaceInObject } from './parameter-substitution.js';

@@ -1,8 +1,8 @@
-import type { ToolExecutionResult, ToolWithServerId } from '../types/common';
-import { createServerLogger } from '../utils/logger';
-import { parseToolConfig, type WebhookToolConfig } from '../types/tool-config';
+import type { ToolExecutionResult, ToolWithServerId } from '../types/common.js';
+import { createServerLogger } from '../utils/logger.js';
+import { parseToolConfig, type WebhookToolConfig } from '../types/tool-config.js';
 import * as os from 'os';
-// import { replaceInString } from '../utils/parameter-substitution'; // Available if needed in future
+// import { replaceInString } from '../utils/parameter-substitution.js'; // Available if needed in future
 
 /**
  * Get the primary network IP address of this machine

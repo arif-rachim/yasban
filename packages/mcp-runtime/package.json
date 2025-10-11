@@ -11,6 +11,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
+    "dev:test": "node ../../scripts/cleanup-dev.js --ports 3100 && tsx watch src/index.ts --server 78b54f36-3da1-409c-862a-9b7b46a3863c --transport sse --port 3100",
+    "servers": "node get-servers.mjs",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
   },

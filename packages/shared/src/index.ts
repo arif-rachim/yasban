@@ -8,6 +8,6 @@
  */
 
 // Re-export everything from sub-modules
-export * from './executors/index';
-export * from './types/index';
-export * from './utils/index';
+export * from './executors/index.js';
+export * from './types/index.js';
+export * from './utils/index.js';

@@ -21,8 +21,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@yasban/shared": ["../shared/src/index.ts"],
-      "@yasban/shared/*": ["../shared/src/*"]
+      "@yasban/shared": ["../shared/dist/index.d.ts"],
+      "@yasban/shared/*": ["../shared/dist/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

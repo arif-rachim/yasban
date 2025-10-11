@@ -4,15 +4,77 @@ const path = require('path');
 
 const isWindows = process.platform === 'win32';
 
-console.log('🧹 Cleaning up development environment...\n');
+/**
+ * Parse command-line arguments
+ */
+function parseArgs() {
+  const args = process.argv.slice(2);
+  const options = {
+    ports: [],
+    electron: false,
+    next: false,
+    help: false,
+  };
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === '--ports' && args[i + 1]) {
+      // Parse comma-separated port numbers
+      options.ports = args[i + 1].split(',').map(p => parseInt(p.trim(), 10)).filter(p => !isNaN(p));
+      i++;
+    } else if (arg === '--electron') {
+      options.electron = true;
+    } else if (arg === '--next') {
+      options.next = true;
+    } else if (arg === '--help' || arg === '-h') {
+      options.help = true;
+    }
+  }
+
+  return options;
+}
+
+/**
+ * Show help message
+ */
+function showHelp() {
+  console.log(`
+🧹 Yasban Development Cleanup Script
+
+Usage:
+  node scripts/cleanup-dev.js [options]
+
+Options:
+  --ports <port1,port2,...>   Kill processes on specific ports (comma-separated)
+  --electron                   Kill all Electron processes
+  --next                       Clean .next directory
+  --help, -h                   Show this help message
+
+Examples:
+  # Clean for web dev (Next.js + Electron)
+  node scripts/cleanup-dev.js --ports 3001 --electron --next
+
+  # Clean for MCP runtime dev
+  node scripts/cleanup-dev.js --ports 3100
+
+  # Clean multiple ports
+  node scripts/cleanup-dev.js --ports 3001,3100,3200
+
+  # Clean everything
+  node scripts/cleanup-dev.js --ports 3001 --electron --next
+  `);
+}
 
 /**
  * Kill processes using specific ports
  */
-function killProcessesOnPorts() {
-  const ports = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010];
+function killProcessesOnPorts(ports) {
+  if (!ports || ports.length === 0) {
+    return;
+  }
 
-  console.log('📡 Checking for processes using ports...');
+  console.log('📡 Checking for processes using ports:', ports.join(', '));
 
   ports.forEach(port => {
     try {
@@ -120,11 +182,37 @@ function cleanNextDir() {
  */
 async function cleanup() {
   try {
-    killProcessesOnPorts();
-    killElectronProcesses();
-    cleanNextDir();
+    const options = parseArgs();
 
-    console.log('\n✨ Cleanup complete! Starting development server...\n');
+    // Show help and exit if requested
+    if (options.help) {
+      showHelp();
+      process.exit(0);
+    }
+
+    // Show help if no options provided
+    if (!options.ports.length && !options.electron && !options.next) {
+      console.log('⚠️  No cleanup options specified.\n');
+      showHelp();
+      process.exit(1);
+    }
+
+    console.log('🧹 Cleaning up development environment...\n');
+
+    // Run only requested cleanup operations
+    if (options.ports.length > 0) {
+      killProcessesOnPorts(options.ports);
+    }
+
+    if (options.electron) {
+      killElectronProcesses();
+    }
+
+    if (options.next) {
+      cleanNextDir();
+    }
+
+    console.log('\n✨ Cleanup complete! Ready to start development server...\n');
 
     // Small delay to ensure all processes are fully terminated
     await new Promise(resolve => setTimeout(resolve, 1000));

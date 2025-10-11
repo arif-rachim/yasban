@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { deleteServer } from '@/app/actions/servers';
+import { startServerGUI, stopServerGUI } from '@/app/servers/[id]/actions';
 
 interface ServerHeaderProps {
   server: {
@@ -23,6 +24,7 @@ interface ServerHeaderProps {
     description: string | null;
     status: string;
     transport: string;
+    port: number | null;
   };
 }
 
@@ -31,6 +33,8 @@ export function ServerHeader({ server }: ServerHeaderProps) {
   const { toast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -65,6 +69,66 @@ export function ServerHeader({ server }: ServerHeaderProps) {
     }
   };
 
+  const handleStart = async () => {
+    setIsStarting(true);
+
+    try {
+      const result = await startServerGUI(server.id);
+
+      if (result.success) {
+        toast({
+          variant: 'success',
+          title: 'Server Started',
+          description: result.message || 'Server started successfully',
+        });
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Failed to Start',
+          description: result.error || 'Failed to start server',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'error',
+        title: 'Error',
+        description: error.message || 'Failed to start server',
+      });
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const handleStop = async () => {
+    setIsStopping(true);
+
+    try {
+      const result = await stopServerGUI(server.id);
+
+      if (result.success) {
+        toast({
+          variant: 'success',
+          title: 'Server Stopped',
+          description: result.message || 'Server stopped successfully',
+        });
+      } else {
+        toast({
+          variant: 'error',
+          title: 'Failed to Stop',
+          description: result.error || 'Failed to stop server',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'error',
+        title: 'Error',
+        description: error.message || 'Failed to stop server',
+      });
+    } finally {
+      setIsStopping(false);
+    }
+  };
+
   return (
     <>
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
@@ -78,6 +142,7 @@ export function ServerHeader({ server }: ServerHeaderProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Status Badge */}
             <span
               className={`px-3 py-1 rounded-full text-xs font-semibold ${
                 server.status === 'running'
@@ -85,11 +150,43 @@ export function ServerHeader({ server }: ServerHeaderProps) {
                   : 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300'
               }`}
             >
-              {server.status}
+              {server.status === 'running' ? '● Running' : '○ Stopped'}
             </span>
+
+            {/* Transport Badge */}
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
               {server.transport}
             </span>
+
+            {/* Port Badge (only show when running and port is set) */}
+            {server.status === 'running' && server.port && (
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300">
+                Port {server.port}
+              </span>
+            )}
+
+            {/* GUI Mode Start/Stop Controls */}
+            {server.status === 'stopped' ? (
+              <Button
+                size="sm"
+                onClick={handleStart}
+                disabled={isStarting}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isStarting ? 'Starting...' : '▶ Start Server'}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleStop}
+                disabled={isStopping}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {isStopping ? 'Stopping...' : '⏹ Stop Server'}
+              </Button>
+            )}
+
+            {/* Delete Button */}
             <Button
               variant="danger"
               size="sm"

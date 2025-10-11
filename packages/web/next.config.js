@@ -8,8 +8,9 @@ const nextConfig = {
   // Enable server mode (remove static export configs)
   // trailingSlash removed - not needed for server mode
 
-  // Transpile workspace packages
-  transpilePackages: ['@yasban/shared'],
+  // Don't transpile @yasban/shared - use pre-compiled dist folder
+  // This allows the shared package to use .js extensions for ES modules
+  // transpilePackages: ['@yasban/shared'],
 
   // Server-only packages (don't bundle for client)
   // Note: @yasban/shared is transpiled, so only external deps are listed here

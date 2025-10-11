@@ -14,7 +14,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Initialize Prisma client pointing to parent project's database
-const DATABASE_PATH = path.join(__dirname, '..', '..', 'prisma', 'dev.db');
+// When running from dist: __dirname = packages/mcp-runtime/dist, need to go up 3 levels
+// When running with tsx: __dirname = packages/mcp-runtime/src, need to go up 3 levels
+const DATABASE_PATH = path.join(__dirname, '..', '..', '..', 'prisma', 'dev.db');
 const DATABASE_URL = `file:${DATABASE_PATH}`;
 
 const prisma = new PrismaClient({

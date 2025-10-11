@@ -12,6 +12,7 @@ interface Server {
   transport: string;
   runMode: string;
   status: string;
+  port: number | null;
   createdAt: Date;
   updatedAt: Date;
 }

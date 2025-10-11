@@ -1,8 +1,8 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
-import type { ToolExecutionResult, ToolWithServerId } from '../types/common';
-import { createServerLogger } from '../utils/logger';
-import { replaceInString, replaceInObject } from '../utils/parameter-substitution';
-import { parseToolConfig, type RestToolConfig } from '../types/tool-config';
+import type { ToolExecutionResult, ToolWithServerId } from '../types/common.js';
+import { createServerLogger } from '../utils/logger.js';
+import { replaceInString, replaceInObject } from '../utils/parameter-substitution.js';
+import { parseToolConfig, type RestToolConfig } from '../types/tool-config.js';
 
 const REQUEST_TIMEOUT_MS = 30000;
 

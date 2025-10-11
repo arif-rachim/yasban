@@ -3,10 +3,10 @@ import mysql from 'mysql2/promise';
 import { Connection as TediousConnection, Request as TediousRequest, TYPES } from 'tedious';
 import Database from 'better-sqlite3';
 import { Connection } from '@prisma/client';
-import type { ToolExecutionResult, ToolWithConnection } from '../types/common';
-import { createServerLogger } from '../utils/logger';
-import { replaceInString } from '../utils/parameter-substitution';
-import { parseToolConfig, type SqlToolConfig } from '../types/tool-config';
+import type { ToolExecutionResult, ToolWithConnection } from '../types/common.js';
+import { createServerLogger } from '../utils/logger.js';
+import { replaceInString } from '../utils/parameter-substitution.js';
+import { parseToolConfig, type SqlToolConfig } from '../types/tool-config.js';
 
 const MAX_ROWS = 1000;
 const QUERY_TIMEOUT_MS = 30000;

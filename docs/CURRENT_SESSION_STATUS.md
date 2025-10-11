@@ -1,71 +1,165 @@
 # Current Session Status
 
 **Last Updated**: 2025-10-11
-**Session**: Hot-Reload System Implementation Complete ✅
-**Status**: 🟢 Active Development - Phase 1
+**Session**: GUI Mode MCP Server Fixes - Dynamic Port Allocation & Logging ✅
+**Status**: 🟡 **PENDING REBOOT** - Database migration needs to be applied
+**Progress**: 95% Complete (migration pending)
 
 ---
 
-## 🎯 Latest Milestone: Hot-Reload System (100% Complete) ✅
+## ⚠️ AFTER REBOOT - DO THIS FIRST
+
+The database is currently locked. After rebooting, follow these steps:
+
+### Step 1: Apply Database Migration
+```bash
+npm run db:migrate
+# When prompted for migration name, just press ENTER (uses existing migration: add_port_to_server)
+```
+
+**OR** use this faster alternative:
+```bash
+npx prisma db push
+```
+
+### Step 2: Start Development Server
+```bash
+npm run dev
+```
+
+### Step 3: Test the Fixes
+1. Open the web app at http://localhost:3001
+2. Navigate to a server
+3. Click "Start Server"
+4. **Expected behavior**:
+   - Server starts on a dynamic port (e.g., Port 3100, 3101, etc.)
+   - Port number displays in the GUI header (purple badge)
+   - All start/stop events logged to `logs/server-{serverId}-{date}.log`
+   - Check LogsViewer to see the logs
+   - No more "port already in use" errors!
+   - No more false "running" status when server crashes
+
+### Step 4: Verify Logs
+Open LogsViewer in the GUI or check directly:
+```bash
+# View server logs
+cat logs/server-{serverId}-2025-10-11.log
+```
+
+You should see entries like:
+```
+2025-10-11 07:00:00 [INFO] Starting MCP server with sse transport on port 3100
+2025-10-11 07:00:03 [INFO] MCP server started successfully
+```
+
+---
+
+## 🎯 Latest Milestone: GUI Mode MCP Server Fixes (95% Complete) ✅
 
 ### ✅ What Was Completed This Session
 
-Implemented a complete hot-reload mechanism for the MCP runtime that detects config changes and reloads tools without restarting the process!
+Fixed three critical issues when starting MCP servers from the GUI and added comprehensive logging!
 
-#### Key Features Implemented:
+#### Issues Fixed:
 
-1. **ConfigCache Class** ✅
-   - Polls database every 2 seconds for config changes
-   - Uses SHA-256 checksum of timestamps for change detection
-   - Event-driven architecture (emits 'configChanged' events)
-   - Automatic cleanup on shutdown
+**Issue 1: No Logging for Server Operations** ✅
+- **Problem**: Start/stop operations weren't logged anywhere
+- **Solution**: Integrated winston logger into ProcessManager
+- **Result**: All events now logged to `logs/server-{serverId}-{date}.log` (visible in LogViewer)
 
-2. **Config Checksum System** ✅
-   - Computes hash from Server, Tool, and Connection `updatedAt` timestamps
-   - Efficient DB queries (only loads timestamps, not full config)
-   - Detects any change to server configuration
+**Issue 2: False "Running" Status** ✅
+- **Problem**: GUI showed "running" even when server crashed due to port conflict
+- **Root Cause**: ProcessManager didn't pass `--port` argument, server defaulted to port 3000 and crashed
+- **Solution**:
+  - ProcessManager now allocates dynamic ports and passes `--port` argument
+  - Increased verification timeout from 1s → 3s to properly detect port conflicts
+  - Process errors properly caught and logged
+- **Result**: Status now accurate, crashes detected immediately
 
-3. **Dynamic Tool Routing** ✅
-   - Modified tool registry to use ConfigCache instead of static config
-   - Tools resolved on each request using latest cached config
-   - Works seamlessly with MCP SDK's request handlers
+**Issue 3: Port Conflicts** ✅
+- **Problem**: All servers tried to use same port (3000), causing conflicts
+- **Solution**:
+  - Created `port-finder` utility to find available ports starting from 3100
+  - Added `port` field to Server model (stores allocated port)
+  - Server actions allocate unique port for each server
+  - GUI displays port number when server is running (purple badge)
+- **Result**: Multiple servers can run simultaneously without conflicts
 
-4. **Transport Integration** ✅
-   - Integrated ConfigCache into stdio transport (Claude Desktop)
-   - Integrated ConfigCache into SSE transport (web clients)
-   - Integrated ConfigCache into HTTP transport (REST API)
-   - All transports stop polling on graceful shutdown
+#### Technical Implementation:
+
+1. **Port Finder Utility** (`packages/web/src/lib/port-finder.ts`) ✅
+   - Finds available ports starting from 3100
+   - Uses Node.js `net` module to check port availability
+   - Returns first available port in range
+
+2. **ProcessManager with Winston Logging** (`packages/web/src/lib/process-manager.ts`) ✅
+   - Uses `createServerLogger(serverId)` for per-server logs
+   - Logs all stdout/stderr from MCP runtime
+   - Logs start/stop/crash events with metadata
+   - Passes `--port` argument to MCP runtime (was missing!)
+   - Increased verification timeout to 3 seconds
+
+3. **Server Actions Port Management** (`packages/web/src/app/servers/[id]/actions.ts`) ✅
+   - `startServerGUI()`: Finds available port, saves to DB, passes to ProcessManager
+   - `stopServerGUI()`: Clears port when stopping (sets to null)
+   - Success messages include port number
+
+4. **UI Port Display** (`packages/web/src/components/ServerHeader.tsx`) ✅
+   - Shows purple "Port {port}" badge when server is running
+   - Only visible when status is "running" and port is set
+
+5. **Database Schema** (`prisma/schema.prisma`) ✅
+   - Added `port Int?` field to Server model
+   - Migration created: `20251011070410_add_port_to_server`
 
 #### Architecture:
 
 ```
-┌─────────────┐
-│ User edits  │
-│ tool in GUI │
-└──────┬──────┘
+┌──────────────┐
+│ User clicks  │
+│ "Start"      │
+└──────┬───────┘
        │
        ▼
 ┌─────────────────────────┐
-│ Prisma writes to DB     │
-│ (packages/web)          │
-│ → Updates Tool.updatedAt│
+│ startServerGUI()        │
+│ 1. Find available port  │
+│    (starts from 3100)   │
+│ 2. Save port to DB      │
 └──────┬──────────────────┘
        │
        ▼
 ┌─────────────────────────┐
-│ ConfigCache (2s poll)   │  ← New!
-│ - Compares checksums    │
-│ - Detects change        │
-│ - Reloads config        │
-│ - Emits event           │
+│ ProcessManager.startGUI │
+│ 1. Create winston logger│
+│ 2. Spawn node process   │
+│ 3. Pass --port 3100     │  ← **FIX!** Was missing
+│ 4. Capture logs         │
+│ 5. Wait 3s to verify    │  ← **FIX!** Was 1s
 └──────┬──────────────────┘
        │
        ▼
 ┌─────────────────────────┐
-│ Tool Registry           │  ← Modified!
-│ - Gets latest config    │
-│ - Routes to executor    │
-│ - Zero downtime!        │
+│ MCP Runtime             │
+│ Starts on correct port  │
+│ No more conflicts!      │
+└─────────────────────────┘
+       │
+       ▼
+┌─────────────────────────┐
+│ Winston Logger          │  ← **NEW!**
+│ logs/server-id-date.log │
+│ - Starting on port 3100 │
+│ - Started successfully  │
+│ - Stopped gracefully    │
+│ - OR Crashed (error)    │
+└─────────────────────────┘
+       │
+       ▼
+┌─────────────────────────┐
+│ GUI Updates             │  ← **NEW!**
+│ Shows "Port 3100" badge │
+│ Status accurate         │
 └─────────────────────────┘
 ```
 
@@ -610,31 +704,30 @@ npm run clean            # Clean build artifacts
 
 ---
 
-## 📦 Files Created/Modified for Hot-Reload
+## 📦 Files Created/Modified for GUI Mode Fixes
 
 ### Created
-- `packages/mcp-runtime/src/config-cache.ts` (247 lines) - ConfigCache class with polling
-- All build output files (`*.d.ts`, `*.js`, `*.js.map`)
+- `packages/web/src/lib/port-finder.ts` (58 lines) - Port availability checker
+- `prisma/migrations/20251011070410_add_port_to_server/migration.sql` - Database migration
 
 ### Modified
-- `packages/mcp-runtime/src/config-loader.ts` - Added `getConfigChecksum()` function
-- `packages/mcp-runtime/src/tools/registry.ts` - Changed to dynamic routing with ConfigCache
-- `packages/mcp-runtime/src/transports/stdio.ts` - Integrated ConfigCache
-- `packages/mcp-runtime/src/transports/sse.ts` - Integrated ConfigCache
-- `packages/mcp-runtime/src/transports/http.ts` - Integrated ConfigCache
-- `packages/mcp-runtime/package.json` - Added winston dependency
+- `prisma/schema.prisma` - Added `port Int?` field to Server model
+- `packages/web/src/lib/process-manager.ts` - Added winston logging + port argument + 3s timeout
+- `packages/web/src/app/servers/[id]/actions.ts` - Added port allocation/cleanup logic
+- `packages/web/src/components/ServerHeader.tsx` - Added port badge display
+- `packages/web/src/components/ConditionalServerLayout.tsx` - Added port to Server interface
 
-### Technical Details
-- **Polling interval**: 2 seconds (configurable)
-- **Checksum algorithm**: SHA-256 of timestamps
-- **Zero downtime**: Requests use atomically-updated config
-- **Memory efficient**: Only stores one config at a time
-- **Event-driven**: Clean architecture with EventEmitter
-- **Works with all transports**: stdio, SSE, HTTP
+### Prisma Client Generated
+- Regenerated with `npx prisma generate` to include new `port` field
+
+### Migration Status
+- ⚠️ **PENDING**: Migration created but not applied (database locked)
+- **Migration SQL**: `ALTER TABLE "Server" ADD COLUMN "port" INTEGER;`
+- **Action needed**: Run `npm run db:migrate` or `npx prisma db push` after reboot
 
 ---
 
-**Status**: 🟢 **Active Development**
-**Next Session**: Service installation with node-windows/node-linux
-**Current Phase**: Phase 1 - **90% complete** (up from 87%)
-**Ready to Commit**: Yes - Hot-reload implementation complete
+**Status**: 🟡 **PENDING REBOOT & MIGRATION**
+**Next Step**: Apply database migration after reboot, then test
+**Current Phase**: Phase 1 - **95% complete** (pending final testing)
+**Ready to Commit**: Almost - need to test after migration applied
