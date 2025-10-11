@@ -86,3 +86,4 @@ yarn-error.log*
 .next
 .turbo
 /packages/web/logs/
+/packages/web/release/

@@ -1,6 +1,7 @@
 appId: com.yasban.app
 productName: Yasban
 copyright: Copyright © 2025 Yasban
+electronVersion: "33.2.1"
 directories:
   buildResources: build
   output: release
@@ -23,15 +24,15 @@ extraResources:
 win:
   target:
     - nsis
-  icon: build/icon.ico
+  icon: build/icons/win/icon.ico
 mac:
   target:
     - dmg
-  icon: build/icon.icns
+  icon: build/icons/mac/icon.icns
   category: public.app-category.developer-tools
 linux:
   target:
     - AppImage
     - deb
-  icon: build/icon.png
+  icon: build/icons/png/512x512.png
   category: Development

@@ -10,24 +10,10 @@
 
 import fs from 'fs-extra';
 import path from 'path';
-
-/**
- * Get the path to the Electron app module
- * This works in both renderer and main process
- */
-function getAppModule() {
-  try {
-    // In main process
-    return require('electron').app;
-  } catch {
-    // In renderer process
-    return require('@electron/remote').app;
-  }
-}
+import { app } from 'electron';
+import * as runtimePaths from '@yasban/shared/runtime-paths';
 
 export class RuntimeExtractor {
-  private static readonly RUNTIME_DIR_NAME = 'mcp-runtime';
-
   /**
    * Get the target directory where mcp-runtime should be extracted
    *
@@ -37,8 +23,7 @@ export class RuntimeExtractor {
    * - Linux: ~/.config/Yasban/mcp-runtime
    */
   static getRuntimePath(): string {
-    const app = getAppModule();
-    return path.join(app.getPath('userData'), this.RUNTIME_DIR_NAME);
+    return runtimePaths.getRuntimePath();
   }
 
   /**
@@ -50,7 +35,7 @@ export class RuntimeExtractor {
    * - Linux: ~/.config/Yasban/mcp-runtime/index.js
    */
   static getRuntimeExecutable(): string {
-    return path.join(this.getRuntimePath(), 'index.js');
+    return runtimePaths.getRuntimeExecutable();
   }
 
   /**
@@ -81,8 +66,6 @@ export class RuntimeExtractor {
    * Throws: Error if extraction fails
    */
   static async extract(): Promise<void> {
-    const app = getAppModule();
-
     if (!app.isPackaged) {
       // In development, no extraction needed
       console.log('[RuntimeExtractor] Running in development mode, skipping extraction');
@@ -91,7 +74,7 @@ export class RuntimeExtractor {
 
     // Source: app.asar.unpacked/resources/mcp-runtime/
     // Note: extraResources are placed in resources/, not inside app.asar
-    const sourcePath = path.join(process.resourcesPath, this.RUNTIME_DIR_NAME);
+    const sourcePath = path.join(process.resourcesPath, runtimePaths.RUNTIME_DIR_NAME);
     const targetPath = this.getRuntimePath();
 
     console.log('[RuntimeExtractor] Extracting MCP Runtime...');
@@ -110,10 +93,10 @@ export class RuntimeExtractor {
     await fs.ensureDir(targetPath);
 
     // Copy all files from resources to user data
+    // fs-extra's copy is already recursive by default
     await fs.copy(sourcePath, targetPath, {
       overwrite: true,
       errorOnExist: false,
-      recursive: true,
     });
 
     console.log('[RuntimeExtractor] ✓ MCP Runtime extracted successfully');

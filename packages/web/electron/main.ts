@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
-import { RuntimeExtractor } from '../src/lib/runtime-extractor';
+import { RuntimeExtractor } from './runtime-extractor';
 
 /**
  * Yasban - Electron Main Process

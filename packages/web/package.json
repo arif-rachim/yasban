@@ -2,6 +2,7 @@
   "name": "@yasban/web",
   "version": "0.1.0",
   "description": "Yasban Web App - Visual MCP Server Builder",
+  "author": "Yasban Team",
   "main": "dist/main.js",
   "private": true,
   "scripts": {
@@ -14,6 +15,7 @@
     "build:next": "next build",
     "build:electron": "tsc -p electron/tsconfig.json",
     "build:mcp": "npm run build --workspace=@yasban/mcp-runtime",
+    "postinstall": "electron-builder install-app-deps",
     "package": "npm run build && electron-builder --config electron-builder.yml",
     "package:win": "npm run build && electron-builder --win --config electron-builder.yml",
     "package:mac": "npm run build && electron-builder --mac --config electron-builder.yml",
@@ -66,7 +68,6 @@
     "cross-env": "^7.0.3",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
-    "electron-rebuild": "^3.2.9",
     "electron-updater": "^6.3.9",
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.0.3",

@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import prisma from '@/lib/prisma';
 import { createServerLogger, getServerLogPath } from '@/lib/logger';
-import { RuntimeExtractor } from './runtime-extractor';
+import { getRuntimePathForEnvironment } from '@yasban/shared/runtime-paths';
 
 /**
  * ProcessManager - Singleton for managing MCP runtime processes
@@ -26,24 +26,7 @@ class ProcessManager {
    * - Production: %APPDATA%/Yasban/mcp-runtime/index.js (extracted path)
    */
   private getRuntimePath(): string {
-    const isDev = process.env.NODE_ENV === 'development';
-
-    if (isDev) {
-      // Development: Use relative path to workspace
-      // process.cwd() is packages/web/, so go up to workspace root
-      return path.join(
-        process.cwd(),
-        '..',  // Up to packages/
-        '..',  // Up to yasban/ (workspace root)
-        'packages',
-        'mcp-runtime',
-        'dist',
-        'index.js'
-      );
-    } else {
-      // Production: Use extracted runtime from user data
-      return RuntimeExtractor.getRuntimeExecutable();
-    }
+    return getRuntimePathForEnvironment();
   }
 
   /**

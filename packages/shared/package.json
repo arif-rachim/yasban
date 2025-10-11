@@ -2,34 +2,38 @@
   "name": "@yasban/shared",
   "version": "1.0.0",
   "description": "Shared library for Yasban - Tool executors, types, and utilities",
-  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
+      "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./executors": {
       "types": "./dist/executors/index.d.ts",
-      "import": "./dist/executors/index.js",
+      "require": "./dist/executors/index.js",
       "default": "./dist/executors/index.js"
     },
     "./types": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/types/index.js",
+      "require": "./dist/types/index.js",
       "default": "./dist/types/index.js"
     },
     "./types/tool-config": {
       "types": "./dist/types/tool-config.d.ts",
-      "import": "./dist/types/tool-config.js",
+      "require": "./dist/types/tool-config.js",
       "default": "./dist/types/tool-config.js"
     },
     "./utils": {
       "types": "./dist/utils/index.d.ts",
-      "import": "./dist/utils/index.js",
+      "require": "./dist/utils/index.js",
       "default": "./dist/utils/index.js"
+    },
+    "./runtime-paths": {
+      "types": "./dist/runtime-paths.d.ts",
+      "require": "./dist/runtime-paths.js",
+      "default": "./dist/runtime-paths.js"
     }
   },
   "scripts": {

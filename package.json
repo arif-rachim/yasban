@@ -33,6 +33,7 @@
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
     "@vitest/coverage-v8": "^2.1.8",
+    "electron-icon-builder": "^2.0.1",
     "prettier": "^3.4.2",
     "prisma": "^6.1.0",
     "rimraf": "^6.0.1",
