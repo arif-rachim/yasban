@@ -19,6 +19,7 @@ export default async function SettingsPage({ params }: SettingsPageProps) {
       description: true,
       transport: true,
       runMode: true,
+      status: true,
     },
   });
 

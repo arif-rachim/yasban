@@ -1,32 +1,48 @@
 /**
- * HTTP Transport - Request/Response for REST-like MCP access
+ * Streamable HTTP Transport - Modern MCP transport (MCP spec 2025-03-26)
  *
- * Exposes MCP tools via HTTP POST endpoints.
- * Useful for testing and external integrations.
+ * Implements the new Streamable HTTP transport that replaces HTTP+SSE.
+ * Uses a SINGLE endpoint that can:
+ * - Handle simple request/response
+ * - Upgrade to SSE streaming for long-running operations
+ * - Support server-to-client notifications
+ * - Provide resumable connections
  *
  * Supports hot-reload via ConfigCache.
+ *
+ * Spec: https://spec.modelcontextprotocol.io/specification/2025-03-26/basic/transports/
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express from 'express';
+import crypto from 'crypto';
 import type { ServerConfig } from '../config-loader.js';
 import type { Logger } from '../utils/logger.js';
 import { ConfigCache } from '../config-cache.js';
 import { registerTools } from '../tools/registry.js';
 
 /**
- * Start MCP server with HTTP transport (with hot-reload support)
+ * Start MCP server with Streamable HTTP transport (with hot-reload support)
+ *
+ * Features:
+ * - Single /mcp endpoint (POST for messages, GET for resumption)
+ * - Automatic SSE upgrade when streaming needed
+ * - Session management via Mcp-Session-Id header
+ * - Resumable connections with Last-Event-ID
+ * - Server-to-client notifications support
  */
-export async function startHttpTransport(
+export async function startStreamableHttpTransport(
   serverConfig: ServerConfig,
   port: number,
   logger: Logger
 ): Promise<void> {
-  logger.info('Starting MCP server with HTTP transport (hot-reload enabled)', {
+  logger.info('Starting MCP server with Streamable HTTP transport (hot-reload enabled)', {
     serverId: serverConfig.id,
     serverName: serverConfig.name,
     port,
     toolCount: serverConfig.tools.length,
+    spec: '2025-03-26',
   });
 
   // Create config cache for hot-reload
@@ -42,14 +58,14 @@ export async function startHttpTransport(
   // Create Express app
   const app = express();
 
-  // Middleware
+  // Basic middleware
   app.use(express.json());
 
-  // CORS for development
+  // CORS middleware
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Session-Id, Last-Event-ID');
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
@@ -65,6 +81,11 @@ export async function startHttpTransport(
 
     // If no auth token configured, allow all requests
     if (!authToken) {
+      return next();
+    }
+
+    // Skip auth for health check
+    if (req.path === '/health' || req.path === '/info') {
       return next();
     }
 
@@ -129,6 +150,7 @@ export async function startHttpTransport(
         statusCode: res.statusCode,
         duration: `${duration}ms`,
         clientIp,
+        sessionId: req.headers['mcp-session-id'],
         userAgent: req.headers['user-agent']?.substring(0, 100),
       });
     };
@@ -149,7 +171,8 @@ export async function startHttpTransport(
       server: currentConfig?.name || serverConfig.name,
       serverId: serverConfig.id,
       toolCount: currentConfig?.tools.length || 0,
-      transport: 'http',
+      transport: 'streamable-http',
+      spec: '2025-03-26',
     });
   });
 
@@ -165,7 +188,8 @@ export async function startHttpTransport(
         id: currentConfig.id,
         name: currentConfig.name,
         description: currentConfig.description,
-        transport: 'http',
+        transport: 'streamable-http',
+        spec: '2025-03-26',
       },
       tools: currentConfig.tools.map((tool) => ({
         id: tool.id,
@@ -173,30 +197,12 @@ export async function startHttpTransport(
         description: tool.description,
         type: tool.type,
         parameterCount: tool.parameters.length,
-        parameters: tool.parameters.map((p) => ({
-          name: p.name,
-          required: p.required,
-          description: p.description,
-        })),
       })),
-    });
-  });
-
-  // List all available tools (uses live config)
-  app.get('/tools', (req, res) => {
-    const currentConfig = configCache.getConfig();
-    if (!currentConfig) {
-      return res.status(503).json({ error: 'Config not loaded' });
-    }
-
-    res.json({
-      tools: currentConfig.tools.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        type: tool.type,
-        endpoint: `/tools/${tool.name}`,
-        parameters: tool.parameters,
-      })),
+      endpoints: {
+        mcp: '/mcp',
+        health: '/health',
+        info: '/info',
+      },
     });
   });
 
@@ -216,98 +222,108 @@ export async function startHttpTransport(
   // Register tool router with config cache (enables hot-reload)
   registerTools(server, configCache, logger);
 
-  // Universal tool endpoint (hot-reload compatible)
-  // Routes to any tool by name using current config
-  app.post('/tools/:toolName', async (req, res) => {
+  logger.info('Setting up Streamable HTTP endpoint', {
+    serverId: serverConfig.id,
+    endpoint: '/mcp',
+  });
+
+  // Create Streamable HTTP transport
+  // The transport handles the MCP protocol, we route HTTP requests to it
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => {
+      // Generate cryptographically secure session ID
+      return crypto.randomUUID();
+    },
+    enableJsonResponse: false, // Prefer SSE streaming
+    onsessioninitialized: (sessionId) => {
+      logger.info('MCP session initialized', { sessionId });
+    },
+    onsessionclosed: (sessionId) => {
+      logger.info('MCP session closed', { sessionId });
+    },
+  });
+
+  // Connect MCP server to transport
+  await server.connect(transport);
+
+  // Single /mcp endpoint handles all MCP communication
+  // - POST /mcp → Send JSON-RPC message (may upgrade to SSE if streaming needed)
+  // - GET /mcp → Resume broken connection with Last-Event-ID
+  // - DELETE /mcp → Close session
+  app.all('/mcp', async (req, res) => {
     try {
-      const { toolName } = req.params;
-      const currentConfig = configCache.getConfig();
-
-      if (!currentConfig) {
-        return res.status(503).json({
-          success: false,
-          error: 'Config not loaded',
-        });
-      }
-
-      // Find tool in current config
-      const tool = currentConfig.tools.find((t) => t.name === toolName);
-      if (!tool) {
-        return res.status(404).json({
-          success: false,
-          error: `Tool not found: ${toolName}`,
-          availableTools: currentConfig.tools.map((t) => t.name),
-        });
-      }
-
-      logger.info(`HTTP request to tool: ${toolName}`, {
-        toolId: tool.id,
-        body: req.body,
-      });
-
-      // Simulate MCP tool call (simplified - in production route through MCP server)
-      const result = {
-        success: true,
-        message: 'Tool executed via HTTP',
-        tool: toolName,
-        arguments: req.body,
-      };
-
-      res.json(result);
+      // Route request to transport (it handles POST, GET, DELETE)
+      // Pass pre-parsed body to avoid stream consumption issues
+      await transport.handleRequest(req, res, req.body);
     } catch (error: any) {
-      logger.error(`HTTP tool execution failed`, {
+      logger.error('Error handling /mcp request', {
         error: error.message,
+        method: req.method,
+        path: req.path,
       });
 
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Tool execution failed',
-      });
+      // Only send error if headers not sent yet
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Internal server error',
+          message: error.message,
+        });
+      }
     }
   });
 
-  // 404 handler (uses live config)
-  app.use((req, res) => {
-    const currentConfig = configCache.getConfig();
-    res.status(404).json({
-      error: 'Not found',
-      message: `Endpoint ${req.path} not found`,
-      availableEndpoints: [
-        '/health',
-        '/info',
-        '/tools',
-        ...(currentConfig?.tools.map((t) => `/tools/${t.name}`) || []),
-      ],
-    });
+  logger.info('✓ Streamable HTTP transport connected', {
+    serverId: serverConfig.id,
+    endpoint: '/mcp',
+    features: [
+      'Single unified endpoint',
+      'Automatic SSE upgrade',
+      'Session management',
+      'Resumable connections',
+      'Server notifications',
+    ],
   });
 
   // Start Express server
   const httpServer = app.listen(port, () => {
-    logger.info('✓ MCP server running on HTTP (hot-reload enabled)', {
+    logger.info('✓ MCP server running on Streamable HTTP (hot-reload enabled)', {
       serverId: serverConfig.id,
       serverName: serverConfig.name,
-      transport: 'http',
+      transport: 'streamable-http',
+      spec: '2025-03-26',
       port,
-      baseUrl: `http://localhost:${port}`,
+      mcpEndpoint: `http://localhost:${port}/mcp`,
       healthCheck: `http://localhost:${port}/health`,
+      info: `http://localhost:${port}/info`,
       toolCount: serverConfig.tools.length,
+      note: 'Single /mcp endpoint handles all MCP communication',
     });
   });
 
   // Handle graceful shutdown
   const shutdown = async () => {
-    logger.info('Shutting down HTTP transport...');
-    configCache.stop(); // Stop config polling
+    logger.info('Shutting down Streamable HTTP transport...');
+
+    // Stop config polling
+    configCache.stop();
+
+    // Close HTTP server
     httpServer.close();
+
+    // Close MCP server
     await server.close();
+
+    logger.info('Streamable HTTP transport shutdown complete');
     process.exit(0);
   };
 
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  logger.info(`HTTP server listening on port ${port}`);
-  logger.info(`Base URL: http://localhost:${port}`);
+  logger.info(`Streamable HTTP server listening on port ${port}`);
+  logger.info(`MCP endpoint: http://localhost:${port}/mcp`);
+  logger.info(`  → POST /mcp - Send JSON-RPC messages`);
+  logger.info(`  → GET /mcp - Resume broken connection`);
   logger.info(`Health check: http://localhost:${port}/health`);
-  logger.info(`Tools list: http://localhost:${port}/tools`);
+  logger.info(`Server info: http://localhost:${port}/info`);
 }

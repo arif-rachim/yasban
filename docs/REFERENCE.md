@@ -28,7 +28,7 @@ Quick reference for architecture, tech stack, database schema, and key decisions
     "runtime": "Node.js 20+",
     "database": "SQLite (via Prisma 6.0+)",
     "orm": "Prisma Client",
-    "mcp_sdk": "@modelcontextprotocol/sdk 1.0+",
+    "mcp_sdk": "@modelcontextprotocol/sdk 1.10+ (with Streamable HTTP)",
     "service_management": {
       "windows": "node-windows 1.0.0-beta.8",
       "linux": "node-linux 0.1.12"
@@ -677,7 +677,7 @@ const processed = replaceInObject(config, {
 - [x] 10 built-in templates
 - [x] Export as Node.js/TypeScript project
 - [x] Export as mcp.json (standard MCP config)
-- [x] All 3 MCP transports (stdio, SSE, HTTP)
+- [x] All MCP transports (stdio, SSE [deprecated], HTTP [deprecated], Streamable HTTP [recommended])
 - [x] JavaScript transformation functions (limited)
 - [x] SQL safety limits (max rows, timeout, warnings)
 - [x] Read-only mode for database connections

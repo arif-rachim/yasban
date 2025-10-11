@@ -18,9 +18,9 @@ model Server {
   name        String   @unique
   description String?
   status      String   @default("stopped") // 'stopped' | 'running'
-  transport   String   @default("stdio")   // 'stdio' | 'sse' | 'http'
+  transport   String   @default("stdio")   // 'stdio' | 'sse' | 'streamable-http'
   runMode     String   @default("gui")     // 'gui' | 'service'
-  port        Int?     // Port number when running (for SSE/HTTP transports)
+  port        Int?     // Port number when running (for SSE/Streamable HTTP transports)
 
   // Relationships
   tools       Tool[]

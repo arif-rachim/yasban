@@ -55,7 +55,7 @@ Before making ANY changes, you MUST:
 9. 10 built-in templates
 10. Export as Node.js/TypeScript project
 11. Export as mcp.json (standard MCP config)
-12. All 3 MCP transports (stdio, SSE, HTTP) ← CRITICAL
+12. All MCP transports (stdio, SSE [deprecated], HTTP [deprecated], **Streamable HTTP** [MCP spec 2025-03-26, recommended]) ← CRITICAL
 13. JavaScript transformation functions (limited, for data transforms only)
 14. SQL safety limits (max rows, timeout, dangerous operation warnings)
 15. Dark mode (system preference + manual toggle)
@@ -113,7 +113,7 @@ Before making ANY changes, you MUST:
 | UI Library | Tailwind CSS + Radix UI | Latest | shadcn/ui patterns for components |
 | Code Editor | Monaco Editor | 0.52+ | VS Code editor component |
 | Database (Internal) | SQLite + Prisma | Latest | Single file, easy backup, perfect for desktop |
-| MCP SDK | @modelcontextprotocol/sdk | 1.0+ | Official SDK from Anthropic |
+| MCP SDK | @modelcontextprotocol/sdk | 1.10+ | Official SDK from Anthropic (with Streamable HTTP support) |
 | Service Management | node-windows + node-linux | Latest | Cross-platform, simple API |
 | Forms | React Hook Form + Zod | Latest | Type-safe form validation |
 | Encryption | Node.js crypto (AES-256-GCM) | Built-in | No external dependencies |
@@ -225,8 +225,9 @@ yasban/
 │   │   │   └── transform.ts       # JS transformation functions
 │   │   ├── transports/            # MCP transports
 │   │   │   ├── stdio.ts           # stdio transport (Claude Desktop)
-│   │   │   ├── sse.ts             # Server-Sent Events transport
-│   │   │   └── http.ts            # HTTP transport
+│   │   │   ├── sse.ts             # SSE transport (deprecated, use streamable-http)
+│   │   │   ├── http.ts            # HTTP transport (deprecated, use streamable-http)
+│   │   │   └── streamable-http.ts # Streamable HTTP (MCP spec 2025-03-26, RECOMMENDED)
 │   │   └── utils/
 │   │       ├── database.ts        # DB connection pooling
 │   │       ├── validator.ts       # Zod validation

@@ -77,9 +77,11 @@ Yasban is a desktop application built with Electron and Next.js that enables use
 │  │                       ▼                                 │  │
 │  │         ┌─────────────────────────────────────────┐    │  │
 │  │         │      MCP SDK (@modelcontextprotocol)    │    │  │
-│  │         │  ┌─────────┐  ┌─────────┐  ┌─────────┐ │    │  │
-│  │         │  │ stdio   │  │   SSE   │  │  HTTP   │ │    │  │
-│  │         │  └─────────┘  └─────────┘  └─────────┘ │    │  │
+│  │         │  ┌─────────┐  ┌──────────────────────┐ │    │  │
+│  │         │  │ stdio   │  │  Streamable HTTP     │ │    │  │
+│  │         │  │         │  │  (MCP spec 2025-03)  │ │    │  │
+│  │         │  └─────────┘  └──────────────────────┘ │    │  │
+│  │         │  (SSE & HTTP deprecated)               │    │  │
 │  │         └─────────────────────────────────────────┘    │  │
 │  └──────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
@@ -374,10 +376,13 @@ switch (config.transport) {
   case 'stdio':
     transport = new StdioServerTransport();
     break;
-  case 'sse':
+  case 'streamable-http':  // RECOMMENDED (MCP spec 2025-03-26)
+    transport = new StreamableHTTPServerTransport(config.port);
+    break;
+  case 'sse':  // DEPRECATED
     transport = new SSEServerTransport(config.port);
     break;
-  case 'http':
+  case 'http':  // DEPRECATED
     transport = new HTTPServerTransport(config.port);
     break;
 }

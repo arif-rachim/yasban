@@ -18,6 +18,7 @@ interface Server {
   description: string | null;
   transport: string;
   runMode: string;
+  status: string;
 }
 
 interface ServerFormProps {
@@ -136,11 +137,11 @@ export function ServerForm({ mode, server, returnTo }: ServerFormProps) {
                   required
                 >
                   <option value="stdio">stdio (Claude Desktop)</option>
-                  <option value="sse">SSE (Server-Sent Events)</option>
-                  <option value="http">HTTP</option>
+                  <option value="sse">SSE (Server-Sent Events, legacy)</option>
+                  <option value="streamable-http">Streamable HTTP (recommended)</option>
                 </select>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  How clients will connect to this server
+                  Streamable HTTP is recommended for remote access (MCP spec 2025-03-26)
                 </p>
               </div>
 
@@ -170,26 +171,64 @@ export function ServerForm({ mode, server, returnTo }: ServerFormProps) {
                 Server Configuration
               </h3>
 
-              <div className="grid gap-4">
-                {/* Transport (Read-only) */}
-                <div className="grid gap-2">
-                  <Label>Transport</Label>
-                  <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded text-sm text-gray-700 dark:text-gray-300">
-                    {server?.transport}
+              {/* Warning when server is running */}
+              {server?.status === 'running' && (
+                <div className="rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-amber-600 dark:text-amber-400 text-lg">⚠️</span>
+                    <div className="text-sm">
+                      <p className="font-medium text-amber-800 dark:text-amber-300">
+                        Server is currently running
+                      </p>
+                      <p className="text-amber-700 dark:text-amber-400 mt-1">
+                        Stop the server to change transport or run mode settings.
+                      </p>
+                    </div>
                   </div>
+                </div>
+              )}
+
+              <div className="grid gap-4">
+                {/* Transport */}
+                <div className="grid gap-2">
+                  <Label htmlFor="transport">
+                    Transport <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    id="transport"
+                    name="transport"
+                    defaultValue={server?.transport}
+                    disabled={server?.status === 'running'}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    required
+                  >
+                    <option value="stdio">stdio (Claude Desktop)</option>
+                    <option value="sse">SSE (Server-Sent Events, legacy)</option>
+                    <option value="streamable-http">Streamable HTTP (recommended)</option>
+                  </select>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Transport type cannot be changed after creation
+                    Streamable HTTP is recommended for remote access (MCP spec 2025-03-26)
                   </p>
                 </div>
 
-                {/* Run Mode (Read-only) */}
+                {/* Run Mode */}
                 <div className="grid gap-2">
-                  <Label>Run Mode</Label>
-                  <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded text-sm text-gray-700 dark:text-gray-300">
-                    {server?.runMode}
-                  </div>
+                  <Label htmlFor="runMode">
+                    Run Mode <span className="text-red-500">*</span>
+                  </Label>
+                  <select
+                    id="runMode"
+                    name="runMode"
+                    defaultValue={server?.runMode}
+                    disabled={server?.status === 'running'}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    required
+                  >
+                    <option value="gui">GUI (Manual Start)</option>
+                    <option value="service">Service (Auto-start)</option>
+                  </select>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Run mode cannot be changed after creation
+                    Service mode installs as Windows service/Linux daemon
                   </p>
                 </div>
               </div>
