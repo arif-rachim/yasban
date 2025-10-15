@@ -12,7 +12,7 @@
 
 ## 🎯 What is Yasban?
 
-Yasban is a **free, open-source, desktop application** that makes it easy for anyone to create MCP servers through a visual, wizard-driven interface. No coding required.
+Yasban is a **free, open-source, web application** that makes it easy for anyone to create MCP servers through a visual, wizard-driven interface. No coding required.
 
 ### **What can you do with Yasban?**
 
@@ -37,36 +37,31 @@ Yasban is a **free, open-source, desktop application** that makes it easy for an
 
 ### **Installation**
 
-#### **Windows**
-
 ```bash
-# Download latest release
-# Run Yasban-Setup-0.1.0.exe
-# Follow installer prompts
+# Clone the repository
+git clone https://github.com/yourusername/yasban.git
+cd yasban
+
+# Install dependencies
+npm install
+
+# Setup database
+npm run db:migrate
+npm run db:seed
+
+# Build packages
+npm run build
+
+# Start the application
+cd packages/web
+npm run start
 ```
 
-#### **macOS**
-
-```bash
-# Download latest release
-# Open Yasban-0.1.0.dmg
-# Drag Yasban to Applications folder
-```
-
-#### **Linux**
-
-```bash
-# AppImage (no installation)
-chmod +x Yasban-0.1.0.AppImage
-./Yasban-0.1.0.AppImage
-
-# Or install .deb
-sudo dpkg -i yasban_0.1.0_amd64.deb
-```
+Then open your browser to **http://localhost:3001**
 
 ### **First Steps**
 
-1. **Launch Yasban**
+1. **Open http://localhost:3001 in your browser**
 2. **Click "New Tool"** → Select "SQL Query Tool"
 3. **Connect to your database** (or use SQLite demo)
 4. **Write a SQL query** (e.g., `SELECT * FROM users WHERE status = $status`)
@@ -158,17 +153,25 @@ Coming soon...
 
 Yasban consists of three main components:
 
-1. **Electron App** - Desktop UI built with Next.js 15
+1. **Next.js Web App** - Browser-based UI with Server Actions
 2. **MCP Runtime** - MCP server execution engine
 3. **SQLite Database** - Local configuration storage
 
 ```
 ┌─────────────────────────────────┐
-│      Yasban Desktop App         │
-│  (Electron + Next.js + Jotai)   │
+│      Web Browser                │
+│  (Access Yasban UI)             │
+│  http://localhost:3001          │
 └────────────┬────────────────────┘
              │
-             │ IPC
+             │ HTTP
+             ▼
+┌─────────────────────────────────┐
+│   Next.js Server + Jotai        │
+│  • Server Actions               │
+│  • Process Manager              │
+└────────────┬────────────────────┘
+             │
              ▼
 ┌─────────────────────────────────┐
 │     SQLite Database (Prisma)    │
@@ -200,7 +203,7 @@ See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) for details.
 
 ## 🛠️ Tech Stack
 
-- **Desktop**: Electron 33+ + Next.js 15 (Nextron)
+- **Web Framework**: Next.js 15 (App Router)
 - **UI**: React 18 + Tailwind CSS + Radix UI
 - **State**: Jotai
 - **Database**: SQLite + Prisma
@@ -335,7 +338,6 @@ Yasban is released under the [MIT License](./LICENSE).
 ## 🙏 Acknowledgments
 
 Built with:
-- [Electron](https://www.electronjs.org/) - Desktop app framework
 - [Next.js](https://nextjs.org/) - React framework
 - [Prisma](https://www.prisma.io/) - Database ORM
 - [MCP SDK](https://modelcontextprotocol.io/) - Model Context Protocol

@@ -2,57 +2,54 @@
 
 Comprehensive system architecture, design patterns, and implementation details.
 
-**Last Updated**: 2025-10-08
+**Last Updated**: 2025-10-15
 
 ---
 
 ## 📐 System Overview
 
-Yasban is a desktop application built with Electron and Next.js that enables users to create MCP (Model Context Protocol) servers visually. The architecture follows a clear separation of concerns between the Electron main process, renderer process (Next.js UI), and the MCP runtime.
+Yasban is a web application built with Next.js that enables users to create MCP (Model Context Protocol) servers visually. The architecture follows a clear separation of concerns between the Next.js server (handling UI and business logic), the SQLite database, and the MCP runtime processes.
 
 ### **High-Level Architecture**
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      YASBAN DESKTOP APP                         │
+│                       Web Browser                               │
+│                   (Access Yasban UI)                            │
+│                   http://localhost:3001                         │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         │ HTTP
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 Next.js Server + Jotai                          │
 │                                                                 │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                 Electron (Viewer Only)                   │  │
-│  │              • Displays Next.js in webview               │  │
-│  │              • No business logic                         │  │
-│  │              • Window management only                    │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                              │                                  │
-│                              ▼                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │              Next.js 15 (Full App Logic)                 │  │
-│  │                                                          │  │
-│  │  ┌────────────────┐        ┌──────────────────────────┐  │  │
-│  │  │ React UI       │        │   Server Actions         │  │  │
-│  │  │ • Forms        │───────►│   • createTool()         │  │  │
-│  │  │ • Tables       │        │   • updateTool()         │  │  │
-│  │  │ • Dialogs      │        │   • deleteTool()         │  │  │
-│  │  │ • Dashboards   │        │   • testTool()           │  │  │
-│  │  └────────────────┘        │   • testConnection()     │  │  │
-│  │                            └──────────────────────────┘  │  │
-│  │  ┌────────────────┐                    │                │  │
-│  │  │ Monaco Editor  │                    ▼                │  │
-│  │  │ (SQL/JS)       │        ┌──────────────────────────┐  │  │
-│  │  └────────────────┘        │   Prisma Client          │  │  │
-│  │                            │   (SQLite)               │  │  │
-│  │                            └──────────────────────────┘  │  │
-│  │                                        │                │  │
-│  │                                        ▼                │  │
-│  │                            ┌──────────────────────────┐  │  │
-│  │                            │   Service Manager        │  │  │
-│  │                            │   • node-windows         │  │  │
-│  │                            │   • node-linux           │  │  │
-│  │                            └──────────────────────────┘  │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└───────────────────────────────────────────────────────────────┘
-                                           │
-                                           │ Spawns/Manages
-                                           ▼
+│  ┌────────────────┐        ┌──────────────────────────┐        │
+│  │ React UI       │        │   Server Actions         │        │
+│  │ • Forms        │───────►│   • createTool()         │        │
+│  │ • Tables       │        │   • updateTool()         │        │
+│  │ • Dialogs      │        │   • deleteTool()         │        │
+│  │ • Dashboards   │        │   • testTool()           │        │
+│  │ • Monaco Editor│        │   • testConnection()     │        │
+│  │   (SQL/JS)     │        │   • Process Manager      │        │
+│  └────────────────┘        └──────────────────────────┘        │
+│                                        │                        │
+│                                        ▼                        │
+│                            ┌──────────────────────────┐        │
+│                            │   Prisma Client          │        │
+│                            │   (SQLite)               │        │
+│                            └──────────────────────────┘        │
+│                                        │                        │
+│                                        ▼                        │
+│                            ┌──────────────────────────┐        │
+│                            │   Service Manager        │        │
+│                            │   • node-windows         │        │
+│                            │   • node-linux           │        │
+│                            └──────────────────────────┘        │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             │ Spawns/Manages
+                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    MCP RUNTIME (Separate Process)               │
 │                                                                 │
@@ -98,150 +95,13 @@ Yasban is a desktop application built with Electron and Next.js that enables use
 
 ## 🏗️ Component Architecture
 
-### **1. Electron Process**
-
-**Responsibility**: Window management and hosting Next.js application only. All business logic is handled by Next.js.
-
-**Components:**
-
-#### **1.1 Main Process** (`electron/main.ts`)
-
-Simple window creation and management.
-
-```typescript
-// electron/main.ts
-import { app, BrowserWindow } from 'electron';
-import path from 'path';
-
-let mainWindow: BrowserWindow | null;
-
-app.on('ready', () => {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-    }
-  });
-
-  // Load Next.js app
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:3000');
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../out/index.html'));
-  }
-});
-```
-
-**No IPC handlers** - All communication is handled within Next.js using Server Actions.
-
-#### **1.2 Database Access** (`src/lib/prisma.ts`)
-
-Prisma client for Next.js Server Actions.
-
-```typescript
-// src/lib/prisma.ts
-import { PrismaClient } from '@prisma/client';
-
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
-
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: ['query'],
-  });
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
-```
-
-#### **1.3 Service Manager** (`src/lib/service-manager.ts`)
-
-Manages OS services/daemons.
-
-```typescript
-// electron/services/windows-service.ts
-import { Service } from 'node-windows';
-
-export class WindowsServiceManager {
-  install(serverId: string, serverName: string) {
-    const svc = new Service({
-      name: `Yasban-${serverName}`,
-      description: `Yasban MCP Server: ${serverName}`,
-      script: path.join(__dirname, '../../mcp-runtime/dist/server.js'),
-      env: [
-        { name: 'SERVER_ID', value: serverId },
-        { name: 'DATABASE_URL', value: getDatabaseUrl() }
-      ]
-    });
-
-    svc.on('install', () => {
-      svc.start();
-    });
-
-    svc.install();
-  }
-
-  // start(), stop(), uninstall() methods...
-}
-```
-
-#### **1.4 Encryption** (`electron/crypto/`)
-
-AES-256-GCM encryption for credentials.
-
-```typescript
-// electron/crypto/encryption.ts
-import crypto from 'crypto';
-import { machineIdSync } from 'node-machine-id';
-
-const ALGORITHM = 'aes-256-gcm';
-
-function getEncryptionKey(): Buffer {
-  const machineId = machineIdSync();
-  return crypto.scryptSync(machineId, 'yasban-salt', 32);
-}
-
-export function encrypt(plaintext: string): string {
-  const key = getEncryptionKey();
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-
-  let encrypted = cipher.update(plaintext, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-
-  const authTag = cipher.getAuthTag();
-
-  // Format: iv:authTag:encrypted
-  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
-}
-
-export function decrypt(ciphertext: string): string {
-  const key = getEncryptionKey();
-  const [ivHex, authTagHex, encrypted] = ciphertext.split(':');
-
-  const iv = Buffer.from(ivHex, 'hex');
-  const authTag = Buffer.from(authTagHex, 'hex');
-
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(authTag);
-
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-
-  return decrypted;
-}
-```
-
----
-
-### **2. Next.js Application**
+### **1. Next.js Application**
 
 **Responsibility**: User interface, state management, business logic, database access, and all application functionality.
 
 **Components:**
 
-#### **2.1 Pages** (`src/app/`)
+#### **1.1 Pages** (`src/app/`)
 
 Next.js App Router pages with Server Actions.
 
@@ -263,7 +123,7 @@ src/app/
 └── settings/page.tsx         # Settings
 ```
 
-#### **2.2 State Management**
+#### **1.2 State Management**
 
 **No global state management library needed.** State is managed by React Server Components and Next.js:
 
@@ -292,7 +152,7 @@ export function ToolsTable({ tools }) {
 - Simpler architecture
 - Better performance (data fetched on server)
 
-#### **2.3 Server Actions** (`src/app/*/actions.ts`)
+#### **1.3 Server Actions** (`src/app/*/actions.ts`)
 
 Next.js Server Actions handle all business logic.
 
@@ -332,13 +192,13 @@ export async function testTool(toolId: string, parameters: Record<string, any>) 
 
 ---
 
-### **3. MCP Runtime**
+### **2. MCP Runtime**
 
 **Responsibility**: MCP server execution, tool execution, hot-reload.
 
 **Components:**
 
-#### **3.1 Server Bootstrap** (`mcp-runtime/src/server.ts`)
+#### **2.1 Server Bootstrap** (`mcp-runtime/src/server.ts`)
 
 Main MCP server entry point.
 
@@ -396,7 +256,7 @@ await hotReload.start();
 console.log(`MCP server started: ${config.name}`);
 ```
 
-#### **3.2 Config Loader** (`mcp-runtime/src/config-loader.ts`)
+#### **2.2 Config Loader** (`mcp-runtime/src/config-loader.ts`)
 
 Loads server configuration from database.
 
@@ -437,7 +297,7 @@ export class ConfigLoader {
 }
 ```
 
-#### **3.3 Hot-Reload Watcher** (`mcp-runtime/src/hot-reload.ts`)
+#### **2.3 Hot-Reload Watcher** (`mcp-runtime/src/hot-reload.ts`)
 
 Watches for config changes and reloads gracefully.
 
@@ -528,7 +388,7 @@ export class HotReloadWatcher {
 }
 ```
 
-#### **3.4 Tool Executors** (`mcp-runtime/src/tools/`)
+#### **2.4 Tool Executors** (`mcp-runtime/src/tools/`)
 
 Execute tool logic.
 
@@ -744,28 +604,33 @@ Safe execution
 
 ---
 
-## 📦 Build & Packaging Architecture
+## 📦 Build & Deployment Architecture
 
 ### **Build Process**
 
 ```
 npm run build
        ↓
-1. Build Next.js (static export)
-   next build → out/
+1. Build shared package (TypeScript)
+   tsc -p packages/shared/tsconfig.json → packages/shared/dist/
        ↓
-2. Build Electron (TypeScript)
-   tsc -p electron/tsconfig.json → dist/
+2. Build mcp-runtime (TypeScript)
+   tsc -p packages/mcp-runtime/tsconfig.json → packages/mcp-runtime/dist/
        ↓
-3. Build mcp-runtime (TypeScript)
-   tsc -p mcp-runtime/tsconfig.json → mcp-runtime/dist/
+3. Build Next.js
+   next build → packages/web/.next/
        ↓
-4. electron-builder packages
-       ↓
-   Windows: NSIS installer (.exe)
-   macOS: Disk image (.dmg)
-   Linux: AppImage + .deb
+4. Start Next.js server
+   next start -p 3001
 ```
+
+### **Deployment**
+
+The application runs as a standard Next.js web application:
+
+- **Development**: `npm run dev` (runs on http://localhost:3001)
+- **Production**: `npm run build && npm run start` (builds and starts server)
+- **Service Installation**: Can be installed as Windows Service or Linux daemon using node-windows/node-linux
 
 ---
 

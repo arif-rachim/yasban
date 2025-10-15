@@ -11,7 +11,6 @@ function parseArgs() {
   const args = process.argv.slice(2);
   const options = {
     ports: [],
-    electron: false,
     next: false,
     help: false,
   };
@@ -23,8 +22,6 @@ function parseArgs() {
       // Parse comma-separated port numbers
       options.ports = args[i + 1].split(',').map(p => parseInt(p.trim(), 10)).filter(p => !isNaN(p));
       i++;
-    } else if (arg === '--electron') {
-      options.electron = true;
     } else if (arg === '--next') {
       options.next = true;
     } else if (arg === '--help' || arg === '-h') {
@@ -47,13 +44,12 @@ Usage:
 
 Options:
   --ports <port1,port2,...>   Kill processes on specific ports (comma-separated)
-  --electron                   Kill all Electron processes
   --next                       Clean .next directory
   --help, -h                   Show this help message
 
 Examples:
-  # Clean for web dev (Next.js + Electron)
-  node scripts/cleanup-dev.js --ports 3001 --electron --next
+  # Clean for web dev (Next.js)
+  node scripts/cleanup-dev.js --ports 3001 --next
 
   # Clean for MCP runtime dev
   node scripts/cleanup-dev.js --ports 3100
@@ -62,7 +58,7 @@ Examples:
   node scripts/cleanup-dev.js --ports 3001,3100,3200
 
   # Clean everything
-  node scripts/cleanup-dev.js --ports 3001 --electron --next
+  node scripts/cleanup-dev.js --ports 3001 --next
   `);
 }
 
@@ -128,26 +124,6 @@ function killProcessesOnPorts(ports) {
 }
 
 /**
- * Kill all Electron processes
- */
-function killElectronProcesses() {
-  console.log('\n⚡ Checking for Electron processes...');
-
-  try {
-    if (isWindows) {
-      execSync('taskkill /F /IM electron.exe /T', { stdio: 'ignore' });
-      console.log('  ✓ Killed all Electron processes');
-    } else {
-      execSync('pkill -9 electron', { stdio: 'ignore' });
-      console.log('  ✓ Killed all Electron processes');
-    }
-  } catch (err) {
-    // No Electron processes running, that's fine
-    console.log('  ✓ No Electron processes found');
-  }
-}
-
-/**
  * Clean .next directory
  */
 function cleanNextDir() {
@@ -191,7 +167,7 @@ async function cleanup() {
     }
 
     // Show help if no options provided
-    if (!options.ports.length && !options.electron && !options.next) {
+    if (!options.ports.length && !options.next) {
       console.log('⚠️  No cleanup options specified.\n');
       showHelp();
       process.exit(1);
@@ -202,10 +178,6 @@ async function cleanup() {
     // Run only requested cleanup operations
     if (options.ports.length > 0) {
       killProcessesOnPorts(options.ports);
-    }
-
-    if (options.electron) {
-      killElectronProcesses();
     }
 
     if (options.next) {

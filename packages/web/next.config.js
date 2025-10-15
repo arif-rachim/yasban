@@ -1,12 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Keep images unoptimized for Electron
+  // Keep images unoptimized for better performance
   images: {
     unoptimized: true,
   },
-
-  // Enable server mode (remove static export configs)
-  // trailingSlash removed - not needed for server mode
 
   // Don't transpile @yasban/shared - use pre-compiled dist folder
   // This allows the shared package to use .js extensions for ES modules
@@ -31,7 +28,7 @@ const nextConfig = {
     },
   },
 
-  // Webpack config adjustments for Electron
+  // Webpack configuration
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Fix for "Can't resolve 'fs'" errors in browser
